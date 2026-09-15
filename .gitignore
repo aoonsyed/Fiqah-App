@@ -1,0 +1,59 @@
+# --- secrets / local env ---
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# --- Python ---
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- models / caches / generated data (all regenerable) ---
+.hf_cache/
+.hadith_cache/
+.tessdata/
+chroma_db/
+!chroma_db/.gitkeep
+
+# --- ingested source books (large / copyrighted — keep the folder, not the files) ---
+books/**
+!books/README.txt
+!books/**/.gitkeep
+
+# --- backend runtime ---
+backend/app.db
+*.sqlite3
+*.db
+
+# --- Next.js ---
+node_modules/
+.next/
+out/
+build/
+.turbo/
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# --- Old structure (backend/frontend - to be removed) ---
+backend/
+frontend/
+
+# --- editor / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+
+# --- local embedding model cache ---
+.cache/models/
+
+import.log
+.import.lock

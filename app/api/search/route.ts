@@ -1,0 +1,90 @@
+import { errorMessage } from '@/lib/errors';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { rateLimit, getClientIp } from '@/lib/rate-limit';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+);
+
+export async function GET(request: NextRequest) {
+  try {
+    const clientIp = getClientIp(request);
+
+    // Rate limit: 30 searches per minute
+    if (!rateLimit(`search:${clientIp}`, 30, 60)) {
+      return NextResponse.json(
+        { error: 'Too many searches. Please try again in a minute.' },
+        { status: 429 },
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const q = searchParams.get('q');
+    const book = searchParams.get('book');
+    const limit = parseInt(searchParams.get('limit') || '20');
+
+    if (!q) {
+      return NextResponse.json(
+        { error: 'Search query (q) is required' },
+        { status: 400 },
+      );
+    }
+
+    // Search hadiths by matn text (case-insensitive)
+    let query = supabase
+      .from('hadiths')
+      .select(
+        `
+        id,
+        hadith_number,
+        matn_arabic,
+        matn_translation,
+        isnad_raw,
+        grading,
+        book_id,
+        chapter_id,
+        books!inner(title),
+        chapters!inner(title)
+      `,
+      )
+      .ilike('matn_arabic', `%${q}%`)
+      .limit(limit);
+
+    if (book) {
+      query = query.eq('books.title', book);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    const results = data?.map((h: any) => ({
+      id: h.id,
+      hadithNumber: h.hadith_number,
+      matnArabic: h.matn_arabic,
+      matnTranslation: h.matn_translation,
+      isnadRaw: h.isnad_raw,
+      grading: h.grading,
+      bookTitle: h.books.title,
+      chapterTitle: h.chapters.title,
+    })) || [];
+
+    return NextResponse.json({
+      query: q,
+      results: results,
+      count: results.length,
+    });
+  } catch (error) {
+    console.error('Search error:', error);
+
+    return NextResponse.json(
+      {
+        error: 'Search failed',
+        message: errorMessage(error),
+      },
+      { status: 500 },
+    );
+  }
+}

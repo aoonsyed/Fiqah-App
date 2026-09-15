@@ -1,0 +1,154 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Inter:wght@400;500;600;700&family=Amiri:wght@400;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #05090f;
+  --surface: 255 255 255 / 0.04;
+  --border: 255 255 255 / 0.09;
+  --ink: #e8eef5;
+  --muted: #8fa3b8;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: Inter, system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  overflow-x: hidden;
+}
+
+::selection {
+  background: #efcd6b;
+  color: #05090f;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #0a1018;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(#1f6f52, #0f3d2e);
+  border-radius: 99px;
+  border: 2px solid #0a1018;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(#efcd6b, #c8932a);
+}
+
+@layer components {
+  /* Frosted panel used across cards, navbar, modals */
+  .glass {
+    @apply border border-white/10 bg-white/[0.04] backdrop-blur-xl;
+  }
+
+  .card {
+    @apply glass relative overflow-hidden rounded-2xl transition-all duration-500;
+  }
+
+  /* Gold sheen that sweeps across a card on hover */
+  .card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(115deg, transparent 35%, rgba(239, 205, 107, 0.13) 50%, transparent 65%);
+    background-size: 250% 100%;
+    background-position: 200% 0;
+    opacity: 0;
+    transition: opacity 0.4s;
+    pointer-events: none;
+  }
+  .card:hover::after {
+    opacity: 1;
+    animation: shimmer 1.4s linear;
+  }
+  .card:hover {
+    @apply -translate-y-1.5 border-gold-300/40;
+    box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(239, 205, 107, 0.1);
+  }
+
+  .btn-gold {
+    @apply relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-full
+      bg-gradient-to-r from-gold-300 to-gold-500 px-6 py-3 text-sm font-semibold text-night-900
+      shadow-lg shadow-gold-500/20 transition-transform duration-300 hover:scale-[1.04] active:scale-95;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/15
+      px-6 py-3 text-sm font-semibold text-white/80 transition-all duration-300
+      hover:border-gold-300/50 hover:bg-white/5 hover:text-white;
+  }
+
+  .text-gradient-gold {
+    background: linear-gradient(100deg, #fdf3d3, #efcd6b, #c8932a, #efcd6b, #fdf3d3);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: shimmer 6s linear infinite;
+  }
+
+  .eyebrow {
+    @apply inline-flex items-center gap-2 rounded-full border border-gold-300/25 bg-gold-300/[0.07]
+      px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-gold-200;
+  }
+
+  .section-title {
+    @apply font-display text-4xl font-bold tracking-tight text-white sm:text-5xl;
+  }
+}
+
+@layer utilities {
+  /* Eight-point Islamic star lattice — the signature backdrop motif */
+  .pattern-girih {
+    background-image: radial-gradient(circle at 50% 50%, rgba(239, 205, 107, 0.11) 1.2px, transparent 1.2px),
+      linear-gradient(45deg, transparent 47%, rgba(74, 222, 159, 0.05) 49%, rgba(74, 222, 159, 0.05) 51%, transparent 53%),
+      linear-gradient(-45deg, transparent 47%, rgba(74, 222, 159, 0.05) 49%, rgba(74, 222, 159, 0.05) 51%, transparent 53%);
+    background-size: 34px 34px, 68px 68px, 68px 68px;
+  }
+
+  .mask-fade-b {
+    -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
+    mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
+  }
+
+  /* Reveal-on-scroll: paired with the Reveal component's IntersectionObserver */
+  .reveal {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}

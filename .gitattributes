@@ -1,0 +1,8 @@
+# Normalise line endings: LF in the repo, native in the working copy.
+* text=auto eol=lf
+
+*.ps1 text eol=crlf
+*.png binary
+*.jpg binary
+*.pdf binary
+*.traineddata binary
