@@ -2,7 +2,10 @@ import { errorMessage } from '@/lib/errors';
 import { NextRequest, NextResponse } from 'next/server';
 import { getHadithsByBook } from '@/lib/rag/db';
 
-export const revalidate = 86400; // Cache for 24 hours
+// Reads the cron secret from request headers, so it can never be prerendered.
+// Declaring `revalidate` instead made Next attempt static generation, and the
+// catch below swallowed the internal error Next uses to mark the route dynamic.
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {

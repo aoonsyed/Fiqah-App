@@ -174,6 +174,64 @@ export async function deleteBook(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Every row of a table for one book, paged past PostgREST's row cap. */
+async function allRowsForBook<T>(table: string, columns: string, bookId: string): Promise<T[]> {
+  const PAGE = 1000;
+  const rows: T[] = [];
+
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from(table)
+      .select(columns)
+      .eq('book_id', bookId)
+      .range(from, from + PAGE - 1);
+
+    if (error) throw error;
+    if (!data?.length) break;
+
+    rows.push(...(data as T[]));
+    if (data.length < PAGE) break;
+  }
+  return rows;
+}
+
+/** Narration ids keyed by number, so an interrupted import can pick up where it stopped. */
+export async function getHadithKeys(bookId: string): Promise<Array<{ id: string; hadithNumber: string; chapterId: string }>> {
+  const rows = await allRowsForBook<{ id: string; hadith_number: string; chapter_id: string }>(
+    'hadiths',
+    'id,hadith_number,chapter_id',
+    bookId,
+  );
+  return rows.map((r) => ({ id: r.id, hadithNumber: r.hadith_number, chapterId: r.chapter_id }));
+}
+
+/**
+ * Chunks stored per narration against how many it should have. A narration
+ * interrupted mid-way has fewer than expected and must be embedded again.
+ */
+export async function getChunkProgress(bookId: string): Promise<Map<string, { stored: number; expected: number }>> {
+  const rows = await allRowsForBook<{ hadith_id: string; total_chunks: number | null }>(
+    'hadith_chunks',
+    'hadith_id,total_chunks',
+    bookId,
+  );
+
+  const progress = new Map<string, { stored: number; expected: number }>();
+  for (const r of rows) {
+    const entry = progress.get(r.hadith_id) ?? { stored: 0, expected: r.total_chunks ?? 1 };
+    entry.stored++;
+    progress.set(r.hadith_id, entry);
+  }
+  return progress;
+}
+
+export async function deleteChunksForHadiths(hadithIds: string[]): Promise<void> {
+  for (let i = 0; i < hadithIds.length; i += 200) {
+    const { error } = await supabase.from('hadith_chunks').delete().in('hadith_id', hadithIds.slice(i, i + 200));
+    if (error) throw error;
+  }
+}
+
 export async function getChaptersForBook(bookId: string): Promise<Chapter[]> {
   const { data, error } = await supabase
     .from('chapters')

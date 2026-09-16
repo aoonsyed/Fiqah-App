@@ -9,7 +9,11 @@ import {
   batchCreateChapters,
   batchCreateHadiths,
   batchCreateHadithChunks,
+  deleteChunksForHadiths,
   getBookByExternalId,
+  getChaptersForBook,
+  getChunkProgress,
+  getHadithKeys,
   deleteBook,
   updateBookHadithCount,
 } from './db';
@@ -58,14 +62,18 @@ const MAX_CHUNK_TOKENS = 500;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Retries transient failures — statement timeouts and network errors. */
-export async function withRetry<T>(label: string, fn: () => Promise<T>, attempts = 4): Promise<T> {
+/**
+ * Retries transient failures — statement timeouts, DNS blips, dropped sockets.
+ * Patient on purpose: three quick retries once lost seven hours of embedding to
+ * a momentary DNS failure.
+ */
+export async function withRetry<T>(label: string, fn: () => Promise<T>, attempts = 7): Promise<T> {
   for (let i = 1; ; i++) {
     try {
       return await fn();
     } catch (err) {
       if (i >= attempts) throw err;
-      const wait = 2000 * 2 ** (i - 1);
+      const wait = Math.min(2000 * 2 ** (i - 1), 30_000);
       process.stdout.write(`\n    ${label}: ${errorMessage(err)} — retry ${i}/${attempts - 1} in ${wait / 1000}s\n`);
       await sleep(wait);
     }
@@ -138,70 +146,119 @@ export async function importBook(source: BookSource, { force = false } = {}): Pr
     return;
   }
 
-  if (existing) {
-    console.log(`  ${meta.externalId} — ${complete ? 're-importing' : 'previous run incomplete, redoing'}`);
+  // A few sources repeat a number (the Khamenei book has six). Disambiguate
+  // deterministically so saved rows can be matched back to records on a resume.
+  const counts = new Map<string, number>();
+  const items = records.map((record) => {
+    const n = (counts.get(record.number) ?? 0) + 1;
+    counts.set(record.number, n);
+    return { record, number: n === 1 ? record.number : `${record.number} (${n})` };
+  });
+
+  // Re-importing a finished book starts clean; an interrupted one keeps what it
+  // already wrote and only finishes the missing work.
+  const resuming = existing !== null && !complete && !force;
+  if (existing && !resuming) {
+    console.log(`  ${meta.externalId} — re-importing`);
     await withRetry('delete previous', () => deleteBook(existing.id));
   }
 
-  const book = await withRetry('create book', () => createBook({ ...meta, ...loaded.meta, totalHadiths: 0 }));
-
-  const chapterTitles: string[] = [];
-  const categoryFor = new Map<string, string | undefined>();
-  for (const r of records) {
-    if (!categoryFor.has(r.chapter)) {
-      categoryFor.set(r.chapter, r.category);
-      chapterTitles.push(r.chapter);
-    }
-  }
+  const book =
+    resuming && existing
+      ? existing
+      : await withRetry('create book', () => createBook({ ...meta, ...loaded.meta, totalHadiths: 0 }));
 
   const chapterIdFor = new Map<string, string>();
-  for (let i = 0; i < chapterTitles.length; i += HADITH_BATCH) {
-    const slice = chapterTitles.slice(i, i + HADITH_BATCH);
+  if (resuming) for (const c of await getChaptersForBook(book.id)) chapterIdFor.set(c.title, c.id);
+
+  const categoryFor = new Map<string, string | undefined>();
+  const newChapters: string[] = [];
+  for (const { record } of items) {
+    if (categoryFor.has(record.chapter)) continue;
+    categoryFor.set(record.chapter, record.category);
+    if (!chapterIdFor.has(record.chapter)) newChapters.push(record.chapter);
+  }
+
+  const firstOrder = chapterIdFor.size;
+  for (let i = 0; i < newChapters.length; i += HADITH_BATCH) {
+    const slice = newChapters.slice(i, i + HADITH_BATCH);
     const saved = await withRetry('insert chapters', () =>
       batchCreateChapters(
-        slice.map((title, n) => ({ bookId: book.id, title, category: categoryFor.get(title), orderIndex: i + n })),
+        slice.map((title, n) => ({
+          bookId: book.id,
+          title,
+          category: categoryFor.get(title),
+          orderIndex: firstOrder + i + n,
+        })),
       ),
     );
     saved.forEach((c) => chapterIdFor.set(c.title, c.id));
   }
 
   const withIsnad = source.isnad ?? meta.docType === 'hadith';
+  const idByNumber = new Map<string, string>();
+  if (resuming) for (const row of await getHadithKeys(book.id)) idByNumber.set(row.hadithNumber, row.id);
 
-  // A multi-row INSERT ... RETURNING preserves order, pairing each row with its record.
-  const saved: Array<{ id: string; chapterId: string; record: ImportRecord }> = [];
-  for (let i = 0; i < records.length; i += HADITH_BATCH) {
-    const slice = records.slice(i, i + HADITH_BATCH);
-    const rows = slice.map((r, n) => {
-      const isnad = withIsnad ? parseHadith(r.text) : undefined;
+  // Only narrations not already stored get inserted.
+  const missing = items.filter((i) => !idByNumber.has(i.number));
+  for (let i = 0; i < missing.length; i += HADITH_BATCH) {
+    const slice = missing.slice(i, i + HADITH_BATCH);
+    const rows = slice.map(({ record, number }) => {
+      const isnad = withIsnad ? parseHadith(record.text) : undefined;
       return {
         bookId: book.id,
-        chapterId: chapterIdFor.get(r.chapter)!,
-        hadithNumber: r.number,
+        chapterId: chapterIdFor.get(record.chapter)!,
+        hadithNumber: number,
         isnadRaw: isnad?.isnadRaw || '',
-        matnArabic: r.text,
-        matnTranslation: r.translation,
+        matnArabic: record.text,
+        matnTranslation: record.translation,
         narrators: (isnad?.narrators ?? []).map((name, k) => ({
-          id: `${meta.externalId}-${i + n}-${k}`,
+          id: `${meta.externalId}-${number}-${k}`,
           canonicalName: name,
           nameVariants: [name],
         })),
-        gradings: r.gradings,
+        gradings: record.gradings,
         language: meta.language,
-        sourceUrl: r.sourceUrl,
+        sourceUrl: record.sourceUrl,
       };
     });
 
+    // A multi-row INSERT ... RETURNING preserves order, pairing rows to records.
     const inserted = await withRetry('insert records', () => batchCreateHadiths(rows));
     if (inserted.length !== slice.length) {
       throw new Error(`Expected ${slice.length} records back, got ${inserted.length}`);
     }
-    inserted.forEach((h, n) => saved.push({ id: h.id, chapterId: h.chapterId, record: slice[n] }));
+    inserted.forEach((h, n) => idByNumber.set(slice[n].number, h.id));
   }
 
-  const work = saved.flatMap(({ id, chapterId, record }) => {
+  // Narrations whose chunks are all present are left alone. One cut off partway
+  // has fewer chunks than it recorded needing, so clear it and redo it whole.
+  const progress = resuming ? await getChunkProgress(book.id) : new Map();
+  const partial = [...progress].filter(([, p]) => p.stored < p.expected).map(([id]) => id);
+  if (partial.length) await withRetry('clear partial chunks', () => deleteChunksForHadiths(partial));
+
+  const embedded = new Set([...progress].filter(([, p]) => p.stored >= p.expected).map(([id]) => id));
+
+  const work = items.flatMap(({ record, number }) => {
+    const hadithId = idByNumber.get(number)!;
+    if (embedded.has(hadithId)) return [];
+
     const chunks = chunkText(embeddingBody(record), { maxChunkLength: MAX_CHUNK_TOKENS });
-    return chunks.map((text, chunkIndex) => ({ hadithId: id, chapterId, text, chunkIndex, totalChunks: chunks.length }));
+    return chunks.map((text, chunkIndex) => ({
+      hadithId,
+      chapterId: chapterIdFor.get(record.chapter)!,
+      text,
+      chunkIndex,
+      totalChunks: chunks.length,
+    }));
   });
+
+  if (resuming) {
+    console.log(
+      `  ${meta.externalId} — resuming: ${embedded.size}/${items.length} narrations already embedded, ` +
+        `${work.length} chunks left`,
+    );
+  }
 
   let done = 0;
   for (let i = 0; i < work.length; i += EMBED_SLICE) {
@@ -225,8 +282,8 @@ export async function importBook(source: BookSource, { force = false } = {}): Pr
     process.stdout.write(`\r  ${meta.externalId} — embedding ${done}/${work.length} chunks   `);
   }
 
-  await withRetry('finalise', () => updateBookHadithCount(book.id, saved.length));
+  await withRetry('finalise', () => updateBookHadithCount(book.id, items.length));
   process.stdout.write(
-    `\r  ${meta.externalId} — ${saved.length} records, ${chapterTitles.length} chapters, ${work.length} chunks\n`,
+    `\r  ${meta.externalId} — ${items.length} records, ${chapterIdFor.size} chapters, ${work.length} chunks embedded\n`,
   );
 }

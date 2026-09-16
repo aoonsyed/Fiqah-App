@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 /**
  * Server-side Supabase client. Uses the service-role key so it bypasses RLS —
@@ -39,7 +39,25 @@ function assertServiceRoleKey(key: string): void {
   }
 }
 
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-assertServiceRoleKey(serviceRoleKey);
+let client: SupabaseClient | null = null;
 
-export const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || '', serviceRoleKey);
+/**
+ * Built on first use, not at import. A build machine has no runtime secrets, so
+ * validating at module scope would fail the build while collecting page data
+ * rather than surfacing a clear error on the first request.
+ */
+function getClient(): SupabaseClient {
+  if (!client) {
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    assertServiceRoleKey(key);
+    client = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || '', key);
+  }
+  return client;
+}
+
+export const supabaseAdmin = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    const value = Reflect.get(getClient(), prop);
+    return typeof value === 'function' ? value.bind(getClient()) : value;
+  },
+});

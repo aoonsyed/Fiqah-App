@@ -1,58 +1,31 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { QiblaCompass } from '@/app/components/QiblaCompass';
 import { Reveal } from '@/app/components/Reveal';
-
-interface QiblaData {
-  bearing: number;
-  direction: string;
-  latitude: number;
-  longitude: number;
-}
-
-const KAABA = { lat: 21.4225, lng: 39.8262 };
-
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+import { useLiveLocation } from '@/app/components/useLiveLocation';
+import { compassDirection, distanceToKaabaKm, qiblaBearing } from '@/lib/qibla';
 
 export default function QiblaPage() {
-  const [qibla, setQibla] = useState<QiblaData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { location, status } = useLiveLocation();
 
-  useEffect(() => {
-    if (!('geolocation' in navigator)) {
-      setError('Geolocation is not supported by this browser.');
-      return setLoading(false);
-    }
+  // Pure geometry, so it recomputes the moment a new fix arrives — no round-trip.
+  const qibla = useMemo(() => {
+    if (!location) return null;
+    const bearing = qiblaBearing(location.lat, location.lng);
+    return {
+      bearing,
+      direction: compassDirection(bearing),
+      distance: distanceToKaabaKm(location.lat, location.lng),
+    };
+  }, [location]);
 
-    navigator.geolocation.getCurrentPosition(
-      async ({ coords }) => {
-        try {
-          const res = await fetch(`/api/qibla?lat=${coords.latitude}&lng=${coords.longitude}`);
-          if (!res.ok) throw new Error('Failed to get Qibla direction');
-          setQibla(await res.json());
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'Error getting Qibla direction');
-        } finally {
-          setLoading(false);
-        }
-      },
-      () => {
-        setError('Location access was denied. Enable it in your browser to find the Qibla.');
-        setLoading(false);
-      },
-    );
-  }, []);
-
-  const distance = qibla ? haversineKm(qibla.latitude, qibla.longitude, KAABA.lat, KAABA.lng) : null;
+  const error =
+    status === 'denied'
+      ? 'Location access was denied. Enable it in your browser to find the Qibla.'
+      : status === 'unsupported'
+        ? 'Geolocation is not available in this browser.'
+        : null;
 
   return (
     <main className="mx-auto max-w-5xl px-5 py-16 sm:px-8">
@@ -64,7 +37,7 @@ export default function QiblaPage() {
         </p>
       </Reveal>
 
-      {loading && (
+      {!qibla && !error && (
         <div className="mt-20 flex flex-col items-center gap-4">
           <span className="h-10 w-10 animate-spin rounded-full border-2 border-white/10 border-t-gold-300" />
           <p className="text-sm text-white/45">Locating you…</p>
@@ -77,7 +50,7 @@ export default function QiblaPage() {
         </div>
       )}
 
-      {qibla && (
+      {qibla && location && (
         <>
           <Reveal className="mt-16 flex justify-center">
             <div className="animate-float">
@@ -89,7 +62,7 @@ export default function QiblaPage() {
             {[
               { label: 'Bearing', value: `${qibla.bearing.toFixed(1)}°`, sub: 'clockwise from true north' },
               { label: 'Direction', value: qibla.direction, sub: 'compass heading' },
-              { label: 'Distance', value: `${Math.round(distance!).toLocaleString()} km`, sub: 'to the Kaaba' },
+              { label: 'Distance', value: `${Math.round(qibla.distance).toLocaleString()} km`, sub: 'to the Kaaba' },
             ].map((stat, i) => (
               <Reveal key={stat.label} delay={i * 90}>
                 <div className="card p-7 text-center">
@@ -118,9 +91,16 @@ export default function QiblaPage() {
                   </li>
                 ))}
               </ol>
-              <p className="mt-7 border-t border-white/10 pt-5 text-xs text-white/35">
-                Your position: {qibla.latitude.toFixed(4)}°, {qibla.longitude.toFixed(4)}°
-              </p>
+
+              <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5 text-xs text-white/35">
+                <span className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+                  Tracking live · updated {new Date(location.updatedAt).toLocaleTimeString()}
+                </span>
+                <span className="tabular-nums">
+                  {location.lat.toFixed(4)}°, {location.lng.toFixed(4)}° ±{Math.round(location.accuracy)}m
+                </span>
+              </div>
             </div>
           </Reveal>
         </>

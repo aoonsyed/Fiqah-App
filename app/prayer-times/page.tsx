@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PrayerTimeline, type PrayerTimes as Times } from '@/app/components/PrayerTimeline';
 import { Reveal } from '@/app/components/Reveal';
+import { useLiveLocation } from '@/app/components/useLiveLocation';
+import { distanceMeters } from '@/lib/qibla';
 
 interface PrayerData extends Times {
   date: string;
@@ -11,35 +13,41 @@ interface PrayerData extends Times {
   method: string;
 }
 
+/** Timings shift by well under a minute across a few km, so only real travel warrants a refetch. */
+const REFETCH_AFTER_METERS = 5000;
+
 export default function PrayerTimesPage() {
+  const { location, status } = useLiveLocation();
   const [times, setTimes] = useState<PrayerData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const lastFix = useRef<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
-    if (!('geolocation' in navigator)) {
-      setError('Geolocation is not supported by this browser.');
-      return setLoading(false);
-    }
+    if (!location) return;
 
-    navigator.geolocation.getCurrentPosition(
-      async ({ coords }) => {
-        try {
-          const res = await fetch(`/api/prayer-times?lat=${coords.latitude}&lng=${coords.longitude}`);
-          if (!res.ok) throw new Error('Failed to get prayer times');
-          setTimes(await res.json());
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'Error getting prayer times');
-        } finally {
-          setLoading(false);
-        }
-      },
-      () => {
-        setError('Location access was denied. Enable it to see timings for your area.');
-        setLoading(false);
-      },
-    );
-  }, []);
+    const previous = lastFix.current;
+    if (previous && distanceMeters(previous.lat, previous.lng, location.lat, location.lng) < REFETCH_AFTER_METERS) {
+      return;
+    }
+    lastFix.current = { lat: location.lat, lng: location.lng };
+
+    fetch(`/api/prayer-times?lat=${location.lat}&lng=${location.lng}`)
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('request failed'))))
+      .then((data) => {
+        setTimes(data);
+        setFailed(false);
+      })
+      .catch(() => setFailed(true));
+  }, [location]);
+
+  const error =
+    status === 'denied'
+      ? 'Location access was denied. Enable it to see timings for your area.'
+      : status === 'unsupported'
+        ? 'Geolocation is not available in this browser.'
+        : failed
+          ? 'Could not reach the prayer-time service. It will retry when your position next updates.'
+          : null;
 
   return (
     <main className="mx-auto max-w-5xl px-5 py-16 sm:px-8">
@@ -51,7 +59,7 @@ export default function PrayerTimesPage() {
         </p>
       </Reveal>
 
-      {loading && (
+      {!times && !error && (
         <div className="mt-20 flex flex-col items-center gap-4">
           <span className="h-10 w-10 animate-spin rounded-full border-2 border-white/10 border-t-gold-300" />
           <p className="text-sm text-white/45">Locating you…</p>
@@ -87,6 +95,12 @@ export default function PrayerTimesPage() {
                     </div>
                   ))}
                 </dl>
+                {location && (
+                  <p className="mt-5 flex items-center gap-2 border-t border-white/8 pt-4 text-xs text-white/35">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+                    Tracking live — recalculates if you travel more than 5 km
+                  </p>
+                )}
               </div>
             </Reveal>
 

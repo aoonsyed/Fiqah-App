@@ -7,8 +7,11 @@ export interface PrayerTimes {
   sunrise?: string;
   dhuhr: string;
   asr: string;
+  sunset?: string;
   maghrib: string;
   isha: string;
+  /** IANA zone the timings belong to — the location's, not the viewer's. */
+  timezone?: string | null;
 }
 
 interface Slot {
@@ -35,6 +38,20 @@ function toMinutes(time: string): number {
   return h * 60 + (m || 0);
 }
 
+/**
+ * Same instant, re-read on another zone's wall clock. Prayer timings are local
+ * to the coordinates they were computed for, so comparing them against the
+ * viewer's clock puts the countdown hours out whenever the two differ.
+ */
+function inTimeZone(date: Date, timeZone?: string | null): Date {
+  if (!timeZone) return date;
+  try {
+    return new Date(date.toLocaleString('en-US', { timeZone }));
+  } catch {
+    return date; // unknown zone — fall back to the device clock
+  }
+}
+
 export function PrayerTimeline({ times }: { times: PrayerTimes | null }) {
   const [now, setNow] = useState(() => new Date());
 
@@ -45,12 +62,15 @@ export function PrayerTimeline({ times }: { times: PrayerTimes | null }) {
 
   const slots: Slot[] = useMemo(
     () =>
-      times ? ORDER.filter((p) => times[p.key]).map((p) => ({ ...p, time: times[p.key]!.slice(0, 5) })) : [],
+      times ? ORDER.filter((p) => times[p.key]).map((p) => ({ ...p, time: String(times[p.key]).slice(0, 5) })) : [],
     [times],
   );
 
-  const nowMins = now.getHours() * 60 + now.getMinutes();
-  const isFriday = now.getDay() === FRIDAY;
+  const zone = times?.timezone ?? null;
+  const localNow = useMemo(() => inTimeZone(now, zone), [now, zone]);
+
+  const nowMins = localNow.getHours() * 60 + localNow.getMinutes();
+  const isFriday = localNow.getDay() === FRIDAY;
 
   // The next prayer is chosen from the actual timings only. Jumuʿah shares
   // Dhuhr's time, so including it would match twice.
@@ -62,8 +82,16 @@ export function PrayerTimeline({ times }: { times: PrayerTimes | null }) {
   const countdown = `${String(Math.floor(minsLeft / 60)).padStart(2, '0')}h ${String(minsLeft % 60).padStart(2, '0')}m`;
   const dayProgress = (nowMins / 1440) * 100;
 
-  const clock = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-  const today = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+  const clock = localNow.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+  const today = localNow.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+
+  const deviceZone = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : null;
+  const elsewhere = Boolean(zone && deviceZone && zone !== deviceZone);
 
   // Jumuʿah begins at zawāl, which is the Dhuhr timing. Congregations are set
   // locally, so this is the earliest valid time rather than a mosque schedule.
@@ -92,11 +120,14 @@ export function PrayerTimeline({ times }: { times: PrayerTimes | null }) {
         </div>
 
         <div className="text-right">
-          <p className="text-[11px] uppercase tracking-[0.16em] text-white/40">Now</p>
+          <p className="text-[11px] uppercase tracking-[0.16em] text-white/40">
+            {elsewhere ? 'Local time there' : 'Now'}
+          </p>
           <p className="font-display text-4xl font-bold leading-none text-white tabular-nums">
             {clock.slice(0, 5)}
             <span className="text-2xl text-white/40">{clock.slice(5)}</span>
           </p>
+          {zone && <p className="mt-1 text-[11px] text-white/35">{zone.replace(/_/g, ' ')}</p>}
           {upcoming && (
             <p className="mt-2 text-xs text-white/45">
               {upcoming.label} in <span className="font-semibold text-gold-200 tabular-nums">{countdown}</span>
@@ -189,6 +220,11 @@ export function PrayerTimeline({ times }: { times: PrayerTimes | null }) {
       </div>
 
       <p className="mt-5 border-t border-white/8 pt-4 text-[11px] leading-relaxed text-white/35">
+        {elsewhere && (
+          <>
+            These are local times for {zone!.replace(/_/g, ' ')}, not your own timezone.{' '}
+          </>
+        )}
         Jumuʿah replaces Dhuhr on Friday and becomes due at zawāl, shown here as the Dhuhr timing. Each mosque sets
         its own congregation time, so confirm locally.
       </p>

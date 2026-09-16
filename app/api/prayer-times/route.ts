@@ -8,6 +8,7 @@ interface PrayerTime {
   Sunrise: string;
   Dhuhr: string;
   Asr: string;
+  Sunset: string;
   Maghrib: string;
   Isha: string;
   Imsak: string;
@@ -54,18 +55,22 @@ export async function GET(request: NextRequest) {
 
     const timings = data.data.timings as PrayerTime;
 
-    // Format response for Shia practice (3 prayer times instead of 5)
+    // Timings are local to the requested coordinates, not to the caller. Passing
+    // the timezone through lets the UI say which clock these belong to and run
+    // its countdown on that clock instead of the device's.
     return NextResponse.json({
       fajr: timings.Fajr,
       sunrise: timings.Sunrise,
       dhuhr: timings.Dhuhr,
       asr: timings.Asr,
+      sunset: timings.Sunset,
       maghrib: timings.Maghrib,
       isha: timings.Isha,
       imsak: timings.Imsak,
       midnight: timings.Midnight,
-      method: 'Shia Ithna-Ashari (Jafari)',
-      date: date || new Date().toISOString().split('T')[0],
+      timezone: data.data.meta?.timezone ?? null,
+      method: data.data.meta?.method?.name ?? 'Shia Ithna-Ashari (Jafari)',
+      date: data.data.date?.gregorian?.date ?? date ?? new Date().toISOString().split('T')[0],
       latitude,
       longitude,
     });

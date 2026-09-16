@@ -1,17 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLiveLocation } from '@/app/components/useLiveLocation';
+import { compassDirection, distanceMeters, qiblaBearing } from '@/lib/qibla';
 import { QiblaCompass } from '@/app/components/QiblaCompass';
 import { PrayerTimeline, type PrayerTimes } from '@/app/components/PrayerTimeline';
 import { HadithSlider } from '@/app/components/HadithSlider';
 import { BarChart } from '@/app/components/Charts';
 import { Reveal, CountUp } from '@/app/components/Reveal';
-
-interface QiblaData {
-  bearing: number;
-  direction: string;
-}
 
 interface CorpusStats {
   totalBooks: number;
@@ -54,12 +51,13 @@ const FEATURES = [
 const CHART_COLORS = ['#4ade9f', '#efcd6b', '#38bdf8', '#a78bfa', '#fb923c', '#f472b6'];
 
 export default function Home() {
-  const [qibla, setQibla] = useState<QiblaData | null>(null);
+  const { location, status } = useLiveLocation();
   const [prayers, setPrayers] = useState<PrayerTimes | null>(null);
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [denied, setDenied] = useState(false);
   const [stats, setStats] = useState<CorpusStats | null>(null);
   const [statsReady, setStatsReady] = useState(false);
+  const lastPrayerFix = useRef<{ lat: number; lng: number } | null>(null);
+
+  const denied = status === 'denied' || status === 'unsupported';
 
   useEffect(() => {
     fetch('/api/stats')
@@ -69,25 +67,26 @@ export default function Home() {
       .finally(() => setStatsReady(true));
   }, []);
 
+  // Pure geometry, so the bearing follows every new fix with no round-trip.
+  const qibla = useMemo(() => {
+    if (!location) return null;
+    const bearing = qiblaBearing(location.lat, location.lng);
+    return { bearing, direction: compassDirection(bearing) };
+  }, [location]);
+
+  // Timings barely move over a few km, so only real travel triggers a refetch.
   useEffect(() => {
-    if (!('geolocation' in navigator)) return setDenied(true);
+    if (!location) return;
 
-    navigator.geolocation.getCurrentPosition(
-      async ({ coords }) => {
-        const { latitude, longitude } = coords;
-        setLocation({ lat: latitude, lng: longitude });
+    const previous = lastPrayerFix.current;
+    if (previous && distanceMeters(previous.lat, previous.lng, location.lat, location.lng) < 5000) return;
+    lastPrayerFix.current = { lat: location.lat, lng: location.lng };
 
-        const [qiblaRes, prayerRes] = await Promise.all([
-          fetch(`/api/qibla?lat=${latitude}&lng=${longitude}`),
-          fetch(`/api/prayer-times?lat=${latitude}&lng=${longitude}`),
-        ]);
-
-        if (qiblaRes.ok) setQibla(await qiblaRes.json());
-        if (prayerRes.ok) setPrayers(await prayerRes.json());
-      },
-      () => setDenied(true),
-    );
-  }, []);
+    fetch(`/api/prayer-times?lat=${location.lat}&lng=${location.lng}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => data && setPrayers(data))
+      .catch(() => {});
+  }, [location]);
 
   const hasCorpus = !!stats && stats.totalHadiths > 0;
   const bookData = (stats?.books ?? [])
