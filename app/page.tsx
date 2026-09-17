@@ -57,7 +57,7 @@ export default function Home() {
   const [statsReady, setStatsReady] = useState(false);
   const lastPrayerFix = useRef<{ lat: number; lng: number } | null>(null);
 
-  const denied = status === 'denied' || status === 'unsupported';
+  const denied = status === 'denied' || status === 'unavailable' || status === 'unsupported';
 
   useEffect(() => {
     fetch('/api/stats')
@@ -208,7 +208,15 @@ export default function Home() {
               ) : (
                 <div className="mt-8 rounded-xl border border-dashed border-white/15 p-5 text-sm text-white/45">
                   {denied
-                    ? 'Location access was declined. Enable it in your browser to see your Qibla bearing.'
+                    ? (
+                      <>
+                        Your location isn&rsquo;t available.{' '}
+                        <Link href="/qibla" className="font-semibold text-gold-200 underline-offset-4 hover:underline">
+                          Choose your city
+                        </Link>{' '}
+                        to see your Qibla and prayer times.
+                      </>
+                    )
                     : 'Detecting your location…'}
                 </div>
               )}

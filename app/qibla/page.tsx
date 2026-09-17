@@ -3,11 +3,13 @@
 import { useMemo } from 'react';
 import { QiblaCompass } from '@/app/components/QiblaCompass';
 import { Reveal } from '@/app/components/Reveal';
-import { useLiveLocation } from '@/app/components/useLiveLocation';
+import { LocationPicker } from '@/app/components/LocationPicker';
+import { useLiveLocation, usePlaceName } from '@/app/components/useLiveLocation';
 import { compassDirection, distanceToKaabaKm, qiblaBearing } from '@/lib/qibla';
 
 export default function QiblaPage() {
-  const { location, status } = useLiveLocation();
+  const { location, status, chooseLocation, useDeviceLocation } = useLiveLocation();
+  const placeName = usePlaceName(location);
 
   // Pure geometry, so it recomputes the moment a new fix arrives — no round-trip.
   const qibla = useMemo(() => {
@@ -20,12 +22,8 @@ export default function QiblaPage() {
     };
   }, [location]);
 
-  const error =
-    status === 'denied'
-      ? 'Location access was denied. Enable it in your browser to find the Qibla.'
-      : status === 'unsupported'
-        ? 'Geolocation is not available in this browser.'
-        : null;
+  // With no position, the picker below explains why and offers city search.
+  const needsCity = !location && (status === 'denied' || status === 'unavailable' || status === 'unsupported');
 
   return (
     <main className="mx-auto max-w-5xl px-5 py-16 sm:px-8">
@@ -37,22 +35,26 @@ export default function QiblaPage() {
         </p>
       </Reveal>
 
-      {!qibla && !error && (
+      <Reveal className="mt-10">
+        <LocationPicker
+          location={location}
+          status={status}
+          placeName={placeName}
+          onChoose={chooseLocation}
+          onUseDevice={useDeviceLocation}
+        />
+      </Reveal>
+
+      {!qibla && !needsCity && (
         <div className="mt-20 flex flex-col items-center gap-4">
           <span className="h-10 w-10 animate-spin rounded-full border-2 border-white/10 border-t-gold-300" />
           <p className="text-sm text-white/45">Locating you…</p>
         </div>
       )}
 
-      {error && (
-        <div className="mx-auto mt-14 max-w-md rounded-2xl border border-red-400/25 bg-red-500/10 p-6 text-center">
-          <p className="text-sm text-red-200">{error}</p>
-        </div>
-      )}
-
       {qibla && location && (
         <>
-          <Reveal className="mt-16 flex justify-center">
+          <Reveal className="mt-14 flex justify-center">
             <div className="animate-float">
               <QiblaCompass bearing={qibla.bearing} size={360} />
             </div>
@@ -80,8 +82,9 @@ export default function QiblaPage() {
               <ol className="mt-6 space-y-4">
                 {[
                   'Lay your phone flat and let the physical compass settle.',
-                  'Turn until your device’s north aligns with the dial’s N.',
-                  'The gold needle now points to the Kaaba — face it to pray.',
+                  'On a phone the dial turns with you. Rotate until the prompt under the dial says you are facing the Qibla.',
+                  'Without a compass sensor (most laptops), face the bearing shown using a physical compass or known landmark.',
+                  'Keep away from metal and electronics, which throw magnetic compasses off by several degrees.',
                 ].map((step, i) => (
                   <li key={i} className="flex gap-4">
                     <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-gold-300/30 bg-gold-300/10 text-xs font-bold text-gold-200">
@@ -93,12 +96,17 @@ export default function QiblaPage() {
               </ol>
 
               <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5 text-xs text-white/35">
-                <span className="flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-                  Tracking live · updated {new Date(location.updatedAt).toLocaleTimeString()}
-                </span>
+                {location.source === 'gps' ? (
+                  <span className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+                    Tracking live · updated {new Date(location.updatedAt).toLocaleTimeString()}
+                  </span>
+                ) : (
+                  <span>Calculated for the city centre — within a few km the bearing barely changes</span>
+                )}
                 <span className="tabular-nums">
-                  {location.lat.toFixed(4)}°, {location.lng.toFixed(4)}° ±{Math.round(location.accuracy)}m
+                  {location.lat.toFixed(4)}°, {location.lng.toFixed(4)}°
+                  {location.source === 'gps' && ` ±${Math.round(location.accuracy)}m`}
                 </span>
               </div>
             </div>

@@ -172,6 +172,33 @@ export function QiblaCompass({ bearing, size = 260 }: { bearing: number | null; 
       <p className="font-display text-4xl font-bold leading-none text-gradient-gold tabular-nums">
         {ready ? `${angle.toFixed(1)}°` : '—'}
       </p>
+
+      {ready && live && <AlignmentHint bearing={angle} heading={heading} />}
     </div>
+  );
+}
+
+/** Phone compasses wander a few degrees; tighter than this would flicker. */
+const ALIGNED_WITHIN_DEG = 5;
+
+/** Tells the user which way to turn, using the device's live heading. */
+function AlignmentHint({ bearing, heading }: { bearing: number; heading: number }) {
+  // Signed shortest turn in (-180, 180]: positive means turn right (clockwise).
+  const turn = ((bearing - heading + 540) % 360) - 180;
+  const aligned = Math.abs(turn) <= ALIGNED_WITHIN_DEG;
+
+  return (
+    <p
+      role="status"
+      className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${
+        aligned
+          ? 'border-emerald-400/50 bg-emerald-500/15 text-emerald-300'
+          : 'border-white/12 bg-white/5 text-white/60'
+      }`}
+    >
+      {aligned
+        ? 'You are facing the Qibla'
+        : `Turn ${turn > 0 ? 'right' : 'left'} ${Math.round(Math.abs(turn))}°`}
+    </p>
   );
 }

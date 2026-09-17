@@ -3,10 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { PrayerTimeline, type PrayerTimes as Times } from '@/app/components/PrayerTimeline';
 import { Reveal } from '@/app/components/Reveal';
-import { useLiveLocation } from '@/app/components/useLiveLocation';
+import { LocationPicker } from '@/app/components/LocationPicker';
+import { useLiveLocation, usePlaceName } from '@/app/components/useLiveLocation';
 import { distanceMeters } from '@/lib/qibla';
 
 interface PrayerData extends Times {
+  imsak: string;
+  midnight: string;
   date: string;
   latitude: number;
   longitude: number;
@@ -17,9 +20,11 @@ interface PrayerData extends Times {
 const REFETCH_AFTER_METERS = 5000;
 
 export default function PrayerTimesPage() {
-  const { location, status } = useLiveLocation();
+  const { location, status, chooseLocation, useDeviceLocation } = useLiveLocation();
+  const placeName = usePlaceName(location);
   const [times, setTimes] = useState<PrayerData | null>(null);
   const [failed, setFailed] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const lastFix = useRef<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
@@ -31,23 +36,21 @@ export default function PrayerTimesPage() {
     }
     lastFix.current = { lat: location.lat, lng: location.lng };
 
-    fetch(`/api/prayer-times?lat=${location.lat}&lng=${location.lng}`)
+    const controller = new AbortController();
+    setFailed(false);
+    fetch(`/api/prayer-times?lat=${location.lat}&lng=${location.lng}`, { signal: controller.signal })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error('request failed'))))
-      .then((data) => {
-        setTimes(data);
-        setFailed(false);
-      })
-      .catch(() => setFailed(true));
-  }, [location]);
+      .then((data) => setTimes(data))
+      .catch((err) => {
+        if (err.name === 'AbortError') return;
+        lastFix.current = null; // so the next fix or a retry fetches again
+        setFailed(true);
+      });
+    return () => controller.abort();
+  }, [location, retryKey]);
 
-  const error =
-    status === 'denied'
-      ? 'Location access was denied. Enable it to see timings for your area.'
-      : status === 'unsupported'
-        ? 'Geolocation is not available in this browser.'
-        : failed
-          ? 'Could not reach the prayer-time service. It will retry when your position next updates.'
-          : null;
+  // With no position, the picker explains why and offers city search.
+  const needsCity = !location && (status === 'denied' || status === 'unavailable' || status === 'unsupported');
 
   return (
     <main className="mx-auto max-w-5xl px-5 py-16 sm:px-8">
@@ -59,16 +62,29 @@ export default function PrayerTimesPage() {
         </p>
       </Reveal>
 
-      {!times && !error && (
+      <Reveal className="mt-10">
+        <LocationPicker
+          location={location}
+          status={status}
+          placeName={placeName}
+          onChoose={chooseLocation}
+          onUseDevice={useDeviceLocation}
+        />
+      </Reveal>
+
+      {!times && !needsCity && !failed && (
         <div className="mt-20 flex flex-col items-center gap-4">
           <span className="h-10 w-10 animate-spin rounded-full border-2 border-white/10 border-t-gold-300" />
           <p className="text-sm text-white/45">Locating you…</p>
         </div>
       )}
 
-      {error && (
-        <div className="mx-auto mt-14 max-w-md rounded-2xl border border-red-400/25 bg-red-500/10 p-6 text-center">
-          <p className="text-sm text-red-200">{error}</p>
+      {failed && (
+        <div className="mx-auto mt-10 max-w-md rounded-2xl border border-red-400/25 bg-red-500/10 p-6 text-center">
+          <p className="text-sm text-red-200">Could not reach the prayer-time service.</p>
+          <button type="button" onClick={() => setRetryKey((k) => k + 1)} className="btn-ghost mt-4 !py-2 text-xs">
+            Try again
+          </button>
         </div>
       )}
 
@@ -84,18 +100,20 @@ export default function PrayerTimesPage() {
                 <h2 className="font-display text-xl font-bold text-white">Calculation details</h2>
                 <dl className="mt-6 space-y-3.5 text-sm">
                   {[
+                    ['Location', placeName ?? '—'],
                     ['Date', times.date],
                     ['Method', times.method],
-                    ['Latitude', `${times.latitude.toFixed(4)}°`],
-                    ['Longitude', `${times.longitude.toFixed(4)}°`],
+                    ['Imsak (stop eating before fast)', times.imsak],
+                    ['Midnight (end of Isha time)', times.midnight],
+                    ['Coordinates', `${times.latitude.toFixed(4)}°, ${times.longitude.toFixed(4)}°`],
                   ].map(([k, v]) => (
                     <div key={k} className="flex justify-between border-b border-white/6 pb-3.5 last:border-0">
                       <dt className="text-white/40">{k}</dt>
-                      <dd className="font-semibold tabular-nums text-white/85">{v}</dd>
+                      <dd className="text-right font-semibold tabular-nums text-white/85">{v}</dd>
                     </div>
                   ))}
                 </dl>
-                {location && (
+                {location?.source === 'gps' && (
                   <p className="mt-5 flex items-center gap-2 border-t border-white/8 pt-4 text-xs text-white/35">
                     <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
                     Tracking live — recalculates if you travel more than 5 km

@@ -18,11 +18,12 @@ interface PrayerTime {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const latitude = parseFloat(searchParams.get('lat') || '0');
-    const longitude = parseFloat(searchParams.get('lng') || '0');
+    // Missing coordinates must be rejected, not read as 0,0 (the Gulf of Guinea).
+    const latitude = parseFloat(searchParams.get('lat') ?? '');
+    const longitude = parseFloat(searchParams.get('lng') ?? '');
     const date = searchParams.get('date'); // Format: YYYY-MM-DD
 
-    if (isNaN(latitude) || isNaN(longitude)) {
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
       return NextResponse.json(
         { error: 'Invalid coordinates' },
         { status: 400 },
