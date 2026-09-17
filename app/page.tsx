@@ -57,7 +57,7 @@ export default function Home() {
   const [statsReady, setStatsReady] = useState(false);
   const lastPrayerFix = useRef<{ lat: number; lng: number } | null>(null);
 
-  const denied = status === 'denied' || status === 'unavailable' || status === 'unsupported';
+  const denied = !location && (status === 'denied' || status === 'unavailable');
 
   useEffect(() => {
     fetch('/api/stats')

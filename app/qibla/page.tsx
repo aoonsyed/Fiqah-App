@@ -8,7 +8,7 @@ import { useLiveLocation, usePlaceName } from '@/app/components/useLiveLocation'
 import { compassDirection, distanceToKaabaKm, qiblaBearing } from '@/lib/qibla';
 
 export default function QiblaPage() {
-  const { location, status, chooseLocation, useDeviceLocation } = useLiveLocation();
+  const { location, status, mode, chooseLocation, useDeviceLocation, useIpLocation } = useLiveLocation();
   const placeName = usePlaceName(location);
 
   // Pure geometry, so it recomputes the moment a new fix arrives — no round-trip.
@@ -23,7 +23,7 @@ export default function QiblaPage() {
   }, [location]);
 
   // With no position, the picker below explains why and offers city search.
-  const needsCity = !location && (status === 'denied' || status === 'unavailable' || status === 'unsupported');
+  const needsCity = !location && (status === 'denied' || status === 'unavailable');
 
   return (
     <main className="mx-auto max-w-5xl px-5 py-16 sm:px-8">
@@ -40,8 +40,10 @@ export default function QiblaPage() {
           location={location}
           status={status}
           placeName={placeName}
+          mode={mode}
           onChoose={chooseLocation}
           onUseDevice={useDeviceLocation}
+          onUseIp={useIpLocation}
         />
       </Reveal>
 
@@ -102,7 +104,11 @@ export default function QiblaPage() {
                     Tracking live · updated {new Date(location.updatedAt).toLocaleTimeString()}
                   </span>
                 ) : (
-                  <span>Calculated for the city centre — within a few km the bearing barely changes</span>
+                  <span>
+                    {location.source === 'ip'
+                      ? 'Approximate, from your IP address — switch to GPS above for your exact position'
+                      : 'Calculated for the city centre — within a few km the bearing barely changes'}
+                  </span>
                 )}
                 <span className="tabular-nums">
                   {location.lat.toFixed(4)}°, {location.lng.toFixed(4)}°

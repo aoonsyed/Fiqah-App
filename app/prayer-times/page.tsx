@@ -20,7 +20,7 @@ interface PrayerData extends Times {
 const REFETCH_AFTER_METERS = 5000;
 
 export default function PrayerTimesPage() {
-  const { location, status, chooseLocation, useDeviceLocation } = useLiveLocation();
+  const { location, status, mode, chooseLocation, useDeviceLocation, useIpLocation } = useLiveLocation();
   const placeName = usePlaceName(location);
   const [times, setTimes] = useState<PrayerData | null>(null);
   const [failed, setFailed] = useState(false);
@@ -50,7 +50,7 @@ export default function PrayerTimesPage() {
   }, [location, retryKey]);
 
   // With no position, the picker explains why and offers city search.
-  const needsCity = !location && (status === 'denied' || status === 'unavailable' || status === 'unsupported');
+  const needsCity = !location && (status === 'denied' || status === 'unavailable');
 
   return (
     <main className="mx-auto max-w-5xl px-5 py-16 sm:px-8">
@@ -67,8 +67,10 @@ export default function PrayerTimesPage() {
           location={location}
           status={status}
           placeName={placeName}
+          mode={mode}
           onChoose={chooseLocation}
           onUseDevice={useDeviceLocation}
+          onUseIp={useIpLocation}
         />
       </Reveal>
 

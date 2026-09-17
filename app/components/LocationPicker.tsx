@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { LiveLocation, LocationStatus, ManualPlace } from './useLiveLocation';
+import type { LiveLocation, LocationSource, LocationStatus, ManualPlace } from './useLiveLocation';
 
 interface SearchResult {
   name: string;
@@ -13,22 +13,28 @@ interface LocationPickerProps {
   location: LiveLocation | null;
   status: LocationStatus;
   placeName: string | null;
+  /** The source the user selected. */
+  mode: LocationSource | null;
   onChoose: (place: ManualPlace) => void;
   onUseDevice: () => void;
+  onUseIp: () => void;
 }
 
-const STATUS_NOTE: Partial<Record<LocationStatus, string>> = {
-  denied: 'Location access was denied. Search for your city instead.',
-  unavailable: 'Your device could not find a location. Search for your city instead.',
-  unsupported: 'This browser has no location access. Search for your city instead.',
+const LABELS: Record<LocationStatus, string> = {
+  locating: 'Finding your location…',
+  ip: 'Approximate · from your IP address',
+  tracking: 'Precise · device GPS',
+  manual: 'Chosen city',
+  denied: 'GPS denied · using your IP address',
+  unavailable: 'Location needed',
 };
 
 /**
  * Shows where Qibla and prayer times are being computed for, and lets the user
  * pick a city when GPS is refused, unavailable, or simply wrong.
  */
-export function LocationPicker({ location, status, placeName, onChoose, onUseDevice }: LocationPickerProps) {
-  const needsChoice = !location && status in STATUS_NOTE;
+export function LocationPicker({ location, status, placeName, mode, onChoose, onUseDevice, onUseIp }: LocationPickerProps) {
+  const needsChoice = !location && (status === 'unavailable' || status === 'denied');
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -79,14 +85,7 @@ export function LocationPicker({ location, status, placeName, onChoose, onUseDev
     setResults([]);
   };
 
-  const label =
-    status === 'manual'
-      ? 'Chosen city'
-      : status === 'tracking'
-        ? 'Your location'
-        : status === 'locating'
-          ? 'Finding your location…'
-          : 'Location needed';
+  const label = status === 'denied' && !location ? 'GPS denied' : LABELS[status];
 
   return (
     <div className="card mx-auto max-w-2xl p-5 hover:!translate-y-0">
@@ -94,7 +93,7 @@ export function LocationPicker({ location, status, placeName, onChoose, onUseDev
         <div className="flex min-w-0 items-center gap-3">
           <span
             className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border ${
-              status === 'tracking'
+              status === 'tracking' || status === 'ip'
                 ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-300'
                 : status === 'manual'
                   ? 'border-gold-300/40 bg-gold-300/10 text-gold-200'
@@ -113,16 +112,21 @@ export function LocationPicker({ location, status, placeName, onChoose, onUseDev
               {location
                 ? (placeName ?? `${location.lat.toFixed(3)}°, ${location.lng.toFixed(3)}°`)
                 : needsChoice
-                  ? STATUS_NOTE[status]
+                  ? 'We could not find your location. Search for your city.'
                   : '—'}
             </p>
           </div>
         </div>
 
         <div className="flex shrink-0 gap-2">
-          {status === 'manual' && (
+          {mode !== 'ip' && (
+            <button type="button" onClick={onUseIp} className="btn-ghost !px-3.5 !py-2 text-xs">
+              Use IP location
+            </button>
+          )}
+          {mode !== 'gps' && (
             <button type="button" onClick={onUseDevice} className="btn-ghost !px-3.5 !py-2 text-xs">
-              Use my location
+              Use precise GPS
             </button>
           )}
           {!needsChoice && (
