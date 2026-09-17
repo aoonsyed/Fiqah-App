@@ -1,18 +1,31 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/app/components/AuthProvider';
 import { AuthShell, Field, FormError } from '@/app/components/AuthShell';
 
+// useSearchParams needs a Suspense boundary or the page can't be prerendered.
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Only same-site paths, so the login page can't be used as an open redirect.
+  const rawNext = searchParams.get('next');
+  const next = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/chat';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,7 +34,7 @@ export default function LoginPage() {
 
     try {
       await signIn(email, password);
-      router.push('/chat');
+      router.replace(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {

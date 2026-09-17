@@ -3,6 +3,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '@/app/components/ChatMessage';
 import { ChatInput } from '@/app/components/ChatInput';
+import { RequireAuth } from '@/app/components/RequireAuth';
+import { useHadithViewer } from '@/app/components/useHadithViewer';
+import { useRouter } from 'next/navigation';
+import { AuthRequiredError, authFetch, loginUrl } from '@/lib/auth-client';
 
 interface Message {
   id: string;
@@ -27,6 +31,16 @@ const GREETING: Message = {
 };
 
 export default function ChatPage() {
+  return (
+    <RequireAuth>
+      <Chat />
+    </RequireAuth>
+  );
+}
+
+function Chat() {
+  const router = useRouter();
+  const { open: openHadith, viewer } = useHadithViewer();
   const [messages, setMessages] = useState<Message[]>([GREETING]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -41,7 +55,7 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await authFetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -58,6 +72,10 @@ export default function ChatPage() {
         { id: (Date.now() + 1).toString(), role: 'assistant', content: data.answer, citations: data.citations },
       ]);
     } catch (error) {
+      if (error instanceof AuthRequiredError) {
+        router.push(loginUrl('/chat'));
+        return;
+      }
       console.error('Chat error:', error);
       setMessages((prev) => [
         ...prev,
@@ -90,7 +108,13 @@ export default function ChatPage() {
 
       <div className="flex-1 overflow-y-auto py-8">
         {messages.map((message) => (
-          <ChatMessage key={message.id} role={message.role} content={message.content} citations={message.citations} />
+          <ChatMessage
+            key={message.id}
+            role={message.role}
+            content={message.content}
+            citations={message.citations}
+            onCitationClick={(c: any) => openHadith(c.hadithId)}
+          />
         ))}
 
         {messages.length === 1 && !isLoading && (
@@ -135,6 +159,8 @@ export default function ChatPage() {
       <div className="-mx-5 sm:-mx-8">
         <ChatInput onSubmit={handleSendMessage} isLoading={isLoading} />
       </div>
+
+      {viewer}
     </div>
   );
 }

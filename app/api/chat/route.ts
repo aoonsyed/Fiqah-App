@@ -1,16 +1,18 @@
 import { errorMessage } from '@/lib/errors';
 import { NextRequest, NextResponse } from 'next/server';
 import { chat, streamChat, type ChatOptions } from '@/lib/rag/engine';
-import { rateLimit, getClientIp } from '@/lib/rate-limit';
+import { rateLimit } from '@/lib/rate-limit';
+import { unauthorized, verifyUserRequest } from '@/lib/auth-server';
 
 const DOC_TYPES = ['hadith', 'masail'] as const;
 
 export async function POST(request: NextRequest) {
   try {
-    const clientIp = getClientIp(request);
+    const user = await verifyUserRequest(request);
+    if (!user) return unauthorized();
 
-    // Rate limit: 10 requests per minute per IP
-    if (!rateLimit(clientIp, 10, 60)) {
+    // Rate limit: 10 requests per minute per user
+    if (!rateLimit(`chat:${user.id}`, 10, 60)) {
       return NextResponse.json(
         { error: 'Too many requests. Please try again in a minute.' },
         { status: 429 },

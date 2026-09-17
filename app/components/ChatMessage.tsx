@@ -4,6 +4,7 @@ import React from 'react';
 
 interface Citation {
   id: string;
+  hadithId?: string;
   bookTitle: string;
   chapterTitle: string;
   hadithNumber: string;

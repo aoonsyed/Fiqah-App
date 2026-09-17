@@ -1,14 +1,16 @@
 import { errorMessage } from '@/lib/errors';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin as supabase } from '@/lib/supabase-server';
-import { rateLimit, getClientIp } from '@/lib/rate-limit';
+import { rateLimit } from '@/lib/rate-limit';
+import { unauthorized, verifyUserRequest } from '@/lib/auth-server';
 
 export async function GET(request: NextRequest) {
   try {
-    const clientIp = getClientIp(request);
+    const user = await verifyUserRequest(request);
+    if (!user) return unauthorized();
 
     // Rate limit: 30 searches per minute
-    if (!rateLimit(`search:${clientIp}`, 30, 60)) {
+    if (!rateLimit(`search:${user.id}`, 30, 60)) {
       return NextResponse.json(
         { error: 'Too many searches. Please try again in a minute.' },
         { status: 429 },
@@ -41,7 +43,7 @@ export async function GET(request: NextRequest) {
         book_id,
         chapter_id,
         books!inner(title),
-        chapters!inner(title)
+        chapters(title)
       `,
       )
       .ilike('matn_arabic', `%${q}%`)
@@ -63,7 +65,7 @@ export async function GET(request: NextRequest) {
       isnadRaw: h.isnad_raw,
       grading: h.grading,
       bookTitle: h.books.title,
-      chapterTitle: h.chapters.title,
+      chapterTitle: h.chapters?.title ?? '',
     })) || [];
 
     return NextResponse.json({

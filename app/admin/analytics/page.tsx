@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { authFetch } from '@/lib/auth-client';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/components/AuthProvider';
 import { isAdminEmail } from '@/lib/admin-auth';
@@ -37,7 +38,7 @@ export default function AdminAnalytics() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const response = await fetch('/api/admin/stats');
+      const response = await authFetch('/api/admin/stats');
       if (!response.ok) throw new Error('Failed to fetch stats');
       const data: Stats = await response.json();
       setStats(data);

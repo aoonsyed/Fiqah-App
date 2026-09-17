@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { authFetch } from '@/lib/auth-client';
+import { RequireAuth } from '@/app/components/RequireAuth';
 import { Reveal, CountUp } from '@/app/components/Reveal';
 
 interface Stats {
@@ -22,13 +24,21 @@ const CARDS: { key: keyof Stats; label: string; hint: string; color: string }[] 
   { key: 'totalMessages', label: 'Messages', hint: 'Total messages exchanged', color: '#fb923c' },
 ];
 
-export default function AdminDashboard() {
+export default function AdminDashboardPage() {
+  return (
+    <RequireAuth>
+      <AdminDashboard />
+    </RequireAuth>
+  );
+}
+
+function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetch('/api/admin/stats')
+    authFetch('/api/admin/stats')
       .then((res) => {
         if (!res.ok) throw new Error('Failed to fetch stats');
         return res.json();

@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Reveal } from '@/app/components/Reveal';
+import { RequireAuth } from '@/app/components/RequireAuth';
+import { useHadithViewer } from '@/app/components/useHadithViewer';
+import { AuthRequiredError, authFetch, loginUrl } from '@/lib/auth-client';
 
 interface SearchResult {
   id: string;
@@ -16,6 +19,16 @@ interface SearchResult {
 const TOPICS = ['knowledge', 'prayer', 'justice', 'patience', 'charity', 'parents'];
 
 export default function SearchPage() {
+  return (
+    <RequireAuth>
+      <Search />
+    </RequireAuth>
+  );
+}
+
+function Search() {
+  const router = useRouter();
+  const { open: openHadith, loadingId, viewer } = useHadithViewer();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -28,11 +41,15 @@ export default function SearchPage() {
     setSearched(true);
 
     try {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(term)}`);
+      const response = await authFetch(`/api/search?q=${encodeURIComponent(term)}`);
       if (!response.ok) throw new Error('Search failed');
       const data = await response.json();
       setResults(data.results);
     } catch (error) {
+      if (error instanceof AuthRequiredError) {
+        router.push(loginUrl('/search'));
+        return;
+      }
       console.error('Search error:', error);
       setResults([]);
     } finally {
@@ -128,15 +145,17 @@ export default function SearchPage() {
                   <p className="mt-4 text-sm leading-relaxed text-white/55">{result.matnTranslation}</p>
                 )}
 
-                <Link
-                  href={`/hadith/${result.id}`}
-                  className="group mt-6 inline-flex items-center gap-2 border-t border-white/10 pt-4 text-sm font-semibold text-gold-200"
+                <button
+                  type="button"
+                  onClick={() => openHadith(result.id)}
+                  disabled={loadingId === result.id}
+                  className="group mt-6 inline-flex items-center gap-2 border-t border-white/10 pt-4 text-sm font-semibold text-gold-200 disabled:opacity-60"
                 >
-                  View full narration
+                  {loadingId === result.id ? 'Opening…' : 'View full narration'}
                   <svg viewBox="0 0 24 24" className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M5 12h14M13 6l6 6-6 6" />
                   </svg>
-                </Link>
+                </button>
               </article>
             </Reveal>
           ))}
@@ -162,6 +181,7 @@ export default function SearchPage() {
           </div>
         </Reveal>
       )}
+      {viewer}
     </main>
   );
 }

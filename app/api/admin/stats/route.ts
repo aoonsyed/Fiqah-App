@@ -1,9 +1,13 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase-server';
 import { errorMessage } from '@/lib/errors';
 import { NextResponse } from 'next/server';
+import { verifyAdminRequest } from '@/lib/admin-auth-server';
 
+export async function GET(request: Request) {
+  if (!(await verifyAdminRequest(request))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
-export async function GET() {
   try {
     // Get book count
     const { count: booksCount } = await supabase
