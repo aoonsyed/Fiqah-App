@@ -152,47 +152,63 @@ END $$;
 
 -- -------------------------------------------------------- search function
 
--- Dropped rather than replaced: CREATE OR REPLACE cannot change a signature,
--- and this one changed with the embedding dimensions.
 DROP FUNCTION IF EXISTS search_hadiths(vector, float, int);
+DROP FUNCTION IF EXISTS search_hadiths(vector, float, int, text, uuid[]);
 
 CREATE FUNCTION search_hadiths (
   query_embedding vector(384),
   similarity_threshold float DEFAULT 0.3,
-  match_count int DEFAULT 10
+  match_count int DEFAULT 5,
+  -- 'hadith' | 'masail' | NULL for both
+  filter_doc_type text DEFAULT NULL,
+  filter_book_ids uuid[] DEFAULT NULL
 )
 RETURNS TABLE (
   hadith_id UUID,
+  book_id UUID,
   book_title TEXT,
+  doc_type TEXT,
   chapter_title TEXT,
   hadith_number TEXT,
   chunk_text TEXT,
   similarity float,
   narrators JSONB,
   grading JSONB,
+  matn_arabic TEXT,
   matn_translation TEXT,
   source_url TEXT
-) AS $$
+)
+LANGUAGE plpgsql
+-- The candidate pool below is 300 chunks; the index must search at least that wide.
+SET hnsw.ef_search = 300
+AS $$
 BEGIN
   RETURN QUERY
-  SELECT
-    h.id,
-    b.title,
-    c.title,
-    h.hadith_number,
-    hc.chunk_text,
-    1 - (hc.embedding <=> query_embedding) AS similarity,
-    h.narrators,
-    h.grading,
-    h.matn_translation,
-    h.source_url
-  FROM hadith_chunks hc
-  JOIN hadiths h ON hc.hadith_id = h.id
-  JOIN books b ON h.book_id = b.id
-  LEFT JOIN chapters c ON h.chapter_id = c.id
-  WHERE hc.embedding IS NOT NULL
-    AND (1 - (hc.embedding <=> query_embedding)) > similarity_threshold
-  ORDER BY similarity DESC
+  WITH nearest AS (
+    -- Must stay a bare ORDER BY distance LIMIT n, or the index is not used.
+    SELECT hc.hadith_id, hc.book_id, hc.chunk_text,
+           1 - (hc.embedding <=> query_embedding) AS sim
+    FROM hadith_chunks hc
+    ORDER BY hc.embedding <=> query_embedding
+    LIMIT 300
+  ),
+  best AS (
+    -- Long narrations are split into several chunks; keep only the best one.
+    SELECT DISTINCT ON (n.hadith_id) n.*
+    FROM nearest n
+    ORDER BY n.hadith_id, n.sim DESC
+  )
+  SELECT h.id, b.id, b.title, b.doc_type, c.title, h.hadith_number,
+         best.chunk_text, best.sim, h.narrators, h.grading,
+         h.matn_arabic, h.matn_translation, h.source_url
+  FROM best
+  JOIN hadiths h ON h.id = best.hadith_id
+  JOIN books b ON b.id = best.book_id
+  LEFT JOIN chapters c ON c.id = h.chapter_id
+  WHERE best.sim > similarity_threshold
+    AND (filter_doc_type IS NULL OR b.doc_type = filter_doc_type)
+    AND (filter_book_ids IS NULL OR b.id = ANY (filter_book_ids))
+  ORDER BY best.sim DESC
   LIMIT match_count;
 END;
-$$ LANGUAGE plpgsql;
+$$;

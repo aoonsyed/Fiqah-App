@@ -76,15 +76,23 @@ export interface Chapter {
 
 export interface RetrievalResult {
   hadithId: string;
+  bookId: string;
   bookTitle: string;
+  docType: DocType;
   chapterTitle: string;
   hadithNumber: string;
   chunkText: string;
   relevanceScore: number;
   narrators: Narrator[];
   gradings?: HadithGrading[];
+  matnArabic: string;
   matnTranslation?: string;
   sourceUrl?: string;
+}
+
+export interface SearchFilters {
+  docType?: DocType;
+  bookIds?: string[];
 }
 
 export interface EmbeddingRequest {

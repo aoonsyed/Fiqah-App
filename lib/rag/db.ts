@@ -1,5 +1,5 @@
 import { supabaseAdmin as supabase } from '../supabase-server';
-import type { Hadith, HadithChunk, Book, Chapter, RetrievalResult } from './types';
+import type { Hadith, HadithChunk, Book, Chapter, RetrievalResult, SearchFilters } from './types';
 
 /* ------------------------------------------------------------------ *
  * Row mapping. Postgres columns are snake_case; the app uses camelCase.
@@ -287,28 +287,35 @@ export async function batchCreateHadithChunks(
   if (error) throw error;
 }
 
+/** Nearest narrations to the query — at most one row per narration. */
 export async function similaritySearch(
   embedding: number[],
-  limit: number = 10,
-  threshold: number = 0.5,
+  limit: number = 5,
+  threshold: number = 0.3,
+  filters: SearchFilters = {},
 ): Promise<RetrievalResult[]> {
   const { data, error } = await supabase.rpc('search_hadiths', {
     query_embedding: embedding,
     similarity_threshold: threshold,
     match_count: limit,
+    filter_doc_type: filters.docType ?? null,
+    filter_book_ids: filters.bookIds?.length ? filters.bookIds : null,
   });
 
   if (error) throw error;
 
   return (data || []).map((result: any) => ({
     hadithId: result.hadith_id,
+    bookId: result.book_id,
     bookTitle: result.book_title,
+    docType: result.doc_type,
     chapterTitle: result.chapter_title,
     hadithNumber: result.hadith_number,
     chunkText: result.chunk_text,
     relevanceScore: result.similarity,
     narrators: result.narrators || [],
     gradings: result.grading || undefined,
+    matnArabic: result.matn_arabic,
     matnTranslation: result.matn_translation,
     sourceUrl: result.source_url,
   }));

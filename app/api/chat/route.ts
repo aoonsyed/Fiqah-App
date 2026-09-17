@@ -1,7 +1,9 @@
 import { errorMessage } from '@/lib/errors';
 import { NextRequest, NextResponse } from 'next/server';
-import { chat, streamChat } from '@/lib/rag/engine';
+import { chat, streamChat, type ChatOptions } from '@/lib/rag/engine';
 import { rateLimit, getClientIp } from '@/lib/rate-limit';
+
+const DOC_TYPES = ['hadith', 'masail'] as const;
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,19 +17,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { query, conversationId, history, stream } = await request.json();
+    const { query, conversationId, history, stream, topK, docType, bookIds } = await request.json();
 
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
       return NextResponse.json({ error: 'Query is required' }, { status: 400 });
     }
+    if (docType !== undefined && !DOC_TYPES.includes(docType)) {
+      return NextResponse.json({ error: `docType must be one of: ${DOC_TYPES.join(', ')}` }, { status: 400 });
+    }
+
+    const options: ChatOptions = {
+      // Capped so a client can't blow up the prompt size.
+      topK: Number.isInteger(topK) ? Math.min(Math.max(topK, 1), 10) : undefined,
+      filters: {
+        docType,
+        bookIds: Array.isArray(bookIds) ? bookIds.filter((id) => typeof id === 'string') : undefined,
+      },
+    };
 
     // Streaming response
     if (stream) {
-      return streamResponse(query, history || []);
+      return streamResponse(query, history || [], options);
     }
 
     // Regular response
-    const response = await chat(query, history || []);
+    const response = await chat(query, history || [], options);
 
     return NextResponse.json({
       answer: response.answer,
@@ -48,21 +62,32 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function streamResponse(query: string, history: any[]) {
-  const stream = new ReadableStream({
+/**
+ * Server-sent events: one `sources` event first (so citations render as the
+ * text arrives), then `token` events, then `done`.
+ */
+async function streamResponse(query: string, history: any[], options: ChatOptions) {
+  const { sources, citations, stream } = await streamChat(query, history, options);
+  const encoder = new TextEncoder();
+  const send = (event: string, data: unknown) => encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+
+  const body = new ReadableStream({
     async start(controller) {
       try {
-        for await (const chunk of streamChat(query, history)) {
-          controller.enqueue(new TextEncoder().encode(chunk));
+        controller.enqueue(send('sources', { sources, citations }));
+        for await (const chunk of stream) {
+          controller.enqueue(send('token', chunk));
         }
+        controller.enqueue(send('done', {}));
         controller.close();
       } catch (error) {
-        controller.error(error);
+        controller.enqueue(send('error', { message: errorMessage(error) }));
+        controller.close();
       }
     },
   });
 
-  return new NextResponse(stream, {
+  return new NextResponse(body, {
     headers: {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
