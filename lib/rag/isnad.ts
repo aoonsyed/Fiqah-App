@@ -165,7 +165,7 @@ const LINK_KINDS: Array<{ pattern: RegExp; kind: LinkKind }> = [
 
 /** Connectors, matched on normalized text and mapped back to the original. */
 const CONNECTOR =
-  /(?:و\s*)?(?:حدثنا|حدثني|حدثنيه|اخبرنا|اخبرني|انبانا|انباني|قرات على|سمعت|رفعه|عن|ان)(?=\s)/g;
+  /(?<=^|[\s،,:؛(])(?:و\s*)?(?:حدثنا|حدثني|حدثنيه|اخبرنا|اخبرني|انبانا|انباني|قرات على|سمعت|رفعه|عن|ان)(?=\s)/g;
 
 /** The branch marker: "ح" alone means a second route to the same report. */
 const BRANCH = /(?:^|\s)ح(?=\s|$)/g;
@@ -277,4 +277,21 @@ export function chainOf(isnadRaw: string | undefined, matnArabic: string | undef
 
   const split = matnArabic ? splitIsnad(matnArabic) : null;
   return split ? parseChain(split.isnad) : [];
+}
+
+/**
+ * Whether a stored chain field really holds a chain.
+ *
+ * Some imports put other things there: a heading ("[2/10] اصول الكافي"), or
+ * just the numbering and "وقال (عليه السلام)" — which says who spoke, not who
+ * transmitted. A chain names at least two people, or states how it was
+ * received.
+ */
+export function isChainLike(isnad: string | undefined): boolean {
+  if (!isnad?.trim()) return false;
+
+  const flat = normalize(isnad).text;
+  if (TRANSMISSION_VERB.test(flat) || /\bروى\b|\bرواه\b|\bروي\b/.test(flat)) return true;
+
+  return parseChain(isnad).reduce((n, r) => n + r.steps.length, 0) >= 2;
 }

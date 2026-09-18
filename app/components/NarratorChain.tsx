@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { chainOf, type ChainRoute, type LinkKind } from '@/lib/rag/isnad';
+import { chainOf, isChainLike, type ChainRoute, type LinkKind } from '@/lib/rag/isnad';
 
 /** How each narrator received the report from the one after them. */
 const LINK_LABEL: Record<LinkKind, string> = {
@@ -18,8 +18,11 @@ const LINK_LABEL: Record<LinkKind, string> = {
  * more than one route ("ح") are shown as separate routes.
  */
 export function NarratorChain({ isnadRaw, matnArabic }: { isnadRaw?: string; matnArabic?: string }) {
-  const routes = chainOf(isnadRaw, matnArabic);
-  const raw = isnadRaw?.trim();
+  // Some imports stored a heading or "وقال (ع)" in this field; that is not a
+  // chain, so fall back to reading the narration text instead of showing it.
+  const stored = isChainLike(isnadRaw) ? isnadRaw : undefined;
+  const routes = chainOf(stored, matnArabic);
+  const raw = stored?.trim();
 
   if (!routes.length && !raw) return null;
 
