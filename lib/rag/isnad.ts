@@ -134,3 +134,147 @@ export function splitIsnad(text: string): IsnadSplit | null {
 export function hasIsnad(text: string): boolean {
   return !!text && lastLinkEnd(normalize(text).text) >= 0;
 }
+
+/* ------------------------------------------------------------------ *
+ * Reading a chain as a sequence of people
+ * ------------------------------------------------------------------ */
+
+/** How one narrator received the report from the next. */
+export type LinkKind = 'narrated' | 'from' | 'raised' | 'heard' | 'read';
+
+export interface ChainStep {
+  /** The narrator's name as written, diacritics kept. */
+  name: string;
+  /** How this narrator received it from the one below. */
+  link: LinkKind;
+}
+
+/** Chains branch ("ح"), so a narration can reach us by several routes. */
+export interface ChainRoute {
+  steps: ChainStep[];
+}
+
+const LINK_KINDS: Array<{ pattern: RegExp; kind: LinkKind }> = [
+  { pattern: /^(?:و?\s*حدثنا|و?\s*حدثني|حدثنيه|نا|ثنا)$/, kind: 'narrated' },
+  { pattern: /^(?:و?\s*اخبرنا|و?\s*اخبرني|انبانا|انباني)$/, kind: 'narrated' },
+  { pattern: /^سمعت$/, kind: 'heard' },
+  { pattern: /^قرات على$/, kind: 'read' },
+  { pattern: /^رفعه$/, kind: 'raised' },
+  { pattern: /^عن$/, kind: 'from' },
+];
+
+/** Connectors, matched on normalized text and mapped back to the original. */
+const CONNECTOR =
+  /(?:و\s*)?(?:حدثنا|حدثني|حدثنيه|اخبرنا|اخبرني|انبانا|انباني|قرات على|سمعت|رفعه|عن|ان)(?=\s)/g;
+
+/** The branch marker: "ح" alone means a second route to the same report. */
+const BRANCH = /(?:^|\s)ح(?=\s|$)/g;
+
+const KIND_OF: Array<{ pattern: RegExp; kind: LinkKind }> = [
+  // "أن فلانا قال": the next name is the source, same as عن.
+  { pattern: /^(?:و\s*)?ان$/, kind: 'from' },
+  { pattern: /سمعت/, kind: 'heard' },
+  { pattern: /قرات على/, kind: 'read' },
+  { pattern: /رفعه/, kind: 'raised' },
+  { pattern: /^(?:و\s*)?عن$/, kind: 'from' },
+];
+
+const kindOf = (connector: string): LinkKind =>
+  KIND_OF.find((k) => k.pattern.test(connector))?.kind ?? 'narrated';
+
+/** Words that trail a name but belong to the joint, not the person. */
+const TRAILING_NOISE = new Set(['قال', 'قالا', 'قالوا', 'جميعا', 'كلهم', 'كلاهما', 'و']);
+/** Openers that belong to the report, not the last narrator's name. */
+const LEADING_NOISE = /^(?:ان|انه|انها)\s+/;
+
+/** Noise around a name that isn't part of it. */
+function cleanName(raw: string): string {
+  let name = raw
+    .replace(NUMBERING, '')
+    .replace(/^[\s،,:؛\-ـ]+|[\s،,:؛\-ـ]+$/g, '')
+    // "- يعني ابن جعفر -" and "- وهو ابن زيد -": the compiler identifying a narrator.
+    .replace(/^-?\s*(?:يعني|وهو|يعنون)\s*/, '')
+    .replace(/\s*-\s*$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Compare on normalized tokens: "قَالاَ" and "قالا" must both be recognised.
+  for (;;) {
+    const tokens = name.split(' ');
+    const last = normalize(tokens[tokens.length - 1] ?? '').text.replace(/[،,]/g, '');
+    if (tokens.length > 1 && TRAILING_NOISE.has(last)) {
+      name = tokens.slice(0, -1).join(' ').replace(/[،,]\s*$/, '').trim();
+      continue;
+    }
+    break;
+  }
+
+  const flat = normalize(name).text;
+  const lead = flat.match(LEADING_NOISE);
+  if (lead) name = name.slice(name.length - (flat.length - lead[0].length)).trim();
+
+  return name;
+}
+
+/**
+ * Reads a chain into an ordered list of narrators, nearest transmitter first.
+ *
+ * Turns "حدثنا أبو بكر، عن سفيان، عن حبيب" into the three people and how each
+ * received it, so the app can show who heard from whom instead of a wall of
+ * Arabic. Returns an empty array when nothing name-like can be found.
+ */
+export function parseChain(isnad: string): ChainRoute[] {
+  if (!isnad?.trim()) return [];
+
+  const { text: flat, map } = normalize(isnad);
+
+  // Cut points of every connector, in the ORIGINAL string's coordinates.
+  const marks: Array<{ start: number; end: number; kind: LinkKind; branch: boolean }> = [];
+
+  BRANCH.lastIndex = 0;
+  for (let m = BRANCH.exec(flat); m; m = BRANCH.exec(flat)) {
+    marks.push({ start: map[m.index], end: map[m.index + m[0].length], kind: 'narrated', branch: true });
+  }
+  CONNECTOR.lastIndex = 0;
+  for (let m = CONNECTOR.exec(flat); m; m = CONNECTOR.exec(flat)) {
+    marks.push({ start: map[m.index], end: map[m.index + m[0].length], kind: kindOf(m[0]), branch: false });
+  }
+  marks.sort((a, b) => a.start - b.start);
+
+  const routes: ChainRoute[] = [];
+  let steps: ChainStep[] = [];
+  // Text before the first connector is a lead narrator (al-Kafi's style) or numbering.
+  let link: LinkKind = 'narrated';
+  let cursor = 0;
+
+  const pushName = (raw: string, kind: LinkKind) => {
+    const name = cleanName(raw);
+    if (name.length >= 3) steps.push({ name, link: kind });
+  };
+
+  for (const mark of marks) {
+    pushName(isnad.slice(cursor, mark.start), link);
+    cursor = mark.end;
+
+    if (mark.branch) {
+      // A new route starts; the names so far form a complete one.
+      if (steps.length) routes.push({ steps });
+      steps = [];
+      link = 'narrated';
+    } else {
+      link = mark.kind;
+    }
+  }
+  pushName(isnad.slice(cursor), link);
+
+  if (steps.length) routes.push({ steps });
+  return routes;
+}
+
+/** Chain for a narration, reading it out of the text when the field is empty. */
+export function chainOf(isnadRaw: string | undefined, matnArabic: string | undefined): ChainRoute[] {
+  if (isnadRaw?.trim()) return parseChain(isnadRaw);
+
+  const split = matnArabic ? splitIsnad(matnArabic) : null;
+  return split ? parseChain(split.isnad) : [];
+}

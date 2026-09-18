@@ -22,6 +22,22 @@ const SUGGESTIONS = [
   'Hadiths narrated by Zurara ibn A’yan',
 ];
 
+/**
+ * Shown while a question is being answered. Retrieval really does run in these
+ * stages, so the lines track what the server is doing rather than inventing
+ * activity; they simply advance on a timer because the API answers in one go.
+ */
+const THINKING_STAGES = [
+  'Reading your question…',
+  'Searching 77,000 narrations…',
+  'Gathering the closest matches…',
+  'Weighing which narrations actually answer this…',
+  'Checking chains and gradings…',
+  'Writing the answer with its citations…',
+];
+
+const STAGE_MS = 2600;
+
 const GREETING: Message = {
   id: '0',
   role: 'assistant',
@@ -43,11 +59,43 @@ function Chat() {
   const { open: openHadith, viewer } = useHadithViewer();
   const [messages, setMessages] = useState<Message[]>([GREETING]);
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [stage, setStage] = useState(0);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const lastUserRef = useRef<HTMLDivElement>(null);
+
+  // The thread scrolls inside its own panel. scrollIntoView would scroll the
+  // whole window too, dragging the page down past the composer to the footer.
+  const scrollThread = (top: number) => scrollerRef.current?.scrollTo({ top, behavior: 'smooth' });
+
+  /**
+   * Bring the newest exchange to the top of the panel rather than jumping to
+   * the end, so a long answer starts where it can be read from its first line.
+   */
+  const showLatest = () => {
+    const scroller = scrollerRef.current;
+    const anchor = lastUserRef.current;
+    if (!scroller) return;
+    if (!anchor) {
+      scrollThread(scroller.scrollHeight);
+      return;
+    }
+    scrollThread(anchor.offsetTop - scroller.offsetTop - 12);
+  };
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading]);
+    showLatest();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, isLoading]);
+
+  // Advance the status line while waiting, holding on the last one.
+  useEffect(() => {
+    if (!isLoading) {
+      setStage(0);
+      return;
+    }
+    const id = setInterval(() => setStage((s) => Math.min(s + 1, THINKING_STAGES.length - 1)), STAGE_MS);
+    return () => clearInterval(id);
+  }, [isLoading]);
 
   const handleSendMessage = async (text: string) => {
     const userMessage: Message = { id: Date.now().toString(), role: 'user', content: text };
@@ -106,16 +154,21 @@ function Chat() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto py-8">
-        {messages.map((message) => (
-          <ChatMessage
-            key={message.id}
-            role={message.role}
-            content={message.content}
-            citations={message.citations}
-            onCitationClick={(c: any) => openHadith(c.hadithId)}
-          />
-        ))}
+      <div ref={scrollerRef} className="flex-1 overflow-y-auto py-8">
+        {messages.map((message, i) => {
+          // Anchor on the last question asked, so it sits at the top of the panel.
+          const isLastQuestion = message.role === 'user' && !messages.slice(i + 1).some((m) => m.role === 'user');
+          return (
+            <div key={message.id} ref={isLastQuestion ? lastUserRef : undefined}>
+              <ChatMessage
+                role={message.role}
+                content={message.content}
+                citations={message.citations}
+                onCitationClick={(c: any) => openHadith(c.hadithId)}
+              />
+            </div>
+          );
+        })}
 
         {messages.length === 1 && !isLoading && (
           <div className="mt-8 flex flex-wrap gap-2.5">
@@ -148,12 +201,13 @@ function Chat() {
                   />
                 ))}
               </span>
-              <span className="text-sm text-white/45">Searching the corpus…</span>
+              <span className="text-sm text-white/45 transition-opacity duration-300">{THINKING_STAGES[stage]}</span>
             </div>
           </div>
         )}
 
-        <div ref={messagesEndRef} />
+        {/* Keeps the newest exchange scrollable to the top of the panel. */}
+        <div className="h-[55vh]" aria-hidden />
       </div>
 
       <div className="-mx-5 sm:-mx-8">

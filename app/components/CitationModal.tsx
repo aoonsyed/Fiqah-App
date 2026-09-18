@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { NarratorChain } from './NarratorChain';
 import { readGrade, summarizeGrades, TONE_LABEL, ungradedNote, type GradeTone } from '@/lib/grading';
 
 const TONE_STYLE: Record<GradeTone | 'mixed', string> = {
@@ -81,16 +82,7 @@ export function CitationModal({ hadith, onClose }: { hadith: Hadith | null; onCl
         </div>
 
         <div className="space-y-7 p-7">
-          {hadith.isnadRaw?.trim() && (
-            <section>
-              <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-gold-300/80">
-                Chain of narrators · Isnad
-              </h3>
-              <p className="mt-3 rounded-xl border border-white/8 bg-white/[0.03] p-4 font-arabic text-sm leading-loose text-white/65">
-                {hadith.isnadRaw}
-              </p>
-            </section>
-          )}
+          <NarratorChain isnadRaw={hadith.isnadRaw} matnArabic={hadith.matnArabic} />
 
           <section>
             <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-gold-300/80">Text</h3>
