@@ -1,6 +1,28 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { readGrade, summarizeGrades, TONE_LABEL, ungradedNote, type GradeTone } from '@/lib/grading';
+
+const TONE_STYLE: Record<GradeTone | 'mixed', string> = {
+  authentic: 'border-emerald-400/35 bg-emerald-500/10 text-emerald-300',
+  acceptable: 'border-sky-400/35 bg-sky-500/10 text-sky-300',
+  weak: 'border-red-400/35 bg-red-500/10 text-red-300',
+  unknown: 'border-white/15 bg-white/5 text-white/60',
+  mixed: 'border-gold-300/40 bg-gold-300/10 text-gold-200',
+};
+
+export function GradeBadge({ grades }: { grades?: Array<{ grade: string }> }) {
+  const tone = summarizeGrades(grades);
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${
+        tone ? TONE_STYLE[tone] : 'border-white/10 bg-white/[0.03] text-white/40'
+      }`}
+    >
+      {tone ? TONE_LABEL[tone] : 'Not graded'}
+    </span>
+  );
+}
 
 interface Grading {
   grade: string;
@@ -18,6 +40,7 @@ interface Hadith {
   sourceUrl?: string;
   bookTitle: string;
   chapterTitle: string;
+  docType?: string;
 }
 
 export function CitationModal({ hadith, onClose }: { hadith: Hadith | null; onClose: () => void }) {
@@ -83,34 +106,52 @@ export function CitationModal({ hadith, onClose }: { hadith: Hadith | null; onCl
             </section>
           )}
 
-          {hadith.gradings && hadith.gradings.length > 0 && (
-            <section>
-              <h3 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-gold-300/80">
-                Gradings
-                {hadith.gradings.length > 1 && (
-                  <span className="ml-2 normal-case tracking-normal text-white/35">
-                    scholars differ on this narration
-                  </span>
+          <section>
+            <h3 className="flex flex-wrap items-center gap-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-gold-300/80">
+              Authenticity
+              <GradeBadge grades={hadith.gradings} />
+            </h3>
+
+            {hadith.gradings && hadith.gradings.length > 0 ? (
+              <>
+                {summarizeGrades(hadith.gradings) === 'mixed' && (
+                  <p className="mt-2 text-xs text-white/45">
+                    Scholars disagree on this narration. Each verdict is listed below.
+                  </p>
                 )}
-              </h3>
-              <ul className="mt-3 space-y-2">
-                {hadith.gradings.map((g, i) => (
-                  <li
-                    key={i}
-                    className="rounded-xl border border-gold-300/20 bg-gold-300/[0.06] px-4 py-3"
-                  >
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <span className="font-arabic text-lg text-gold-100">{g.grade}</span>
-                      {g.gradedBy && <span className="text-xs text-white/50">{g.gradedBy}</span>}
-                    </div>
-                    {g.gradingSource && (
-                      <p className="mt-1 text-[11px] italic text-white/35">{g.gradingSource}</p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+                <ul className="mt-3 space-y-2">
+                  {hadith.gradings.map((g, i) => {
+                    const reading = readGrade(g.grade);
+                    return (
+                      <li key={i} className="rounded-xl border border-gold-300/20 bg-gold-300/[0.06] px-4 py-3">
+                        <div className="flex flex-wrap items-baseline justify-between gap-2">
+                          <span className="flex flex-wrap items-baseline gap-2.5">
+                            <span className="font-arabic text-lg text-gold-100">{g.grade}</span>
+                            <span
+                              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${TONE_STYLE[reading.tone]}`}
+                            >
+                              {reading.meaning}
+                            </span>
+                          </span>
+                          {g.gradedBy && <span className="text-xs text-white/50">Graded by {g.gradedBy}</span>}
+                        </div>
+                        {g.gradingSource && <p className="mt-1 text-[11px] italic text-white/35">{g.gradingSource}</p>}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            ) : (
+              <p className="mt-3 rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm leading-relaxed text-white/55">
+                {ungradedNote(hadith.bookTitle, hadith.docType)}
+              </p>
+            )}
+
+            <p className="mt-3 text-[11px] leading-relaxed text-white/30">
+              Grades assess the chain of narration as judged by the named scholar. Individual narrator reliability
+              (rijal) ratings are not yet in the library.
+            </p>
+          </section>
 
           {hadith.sourceUrl && (
             <a

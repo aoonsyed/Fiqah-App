@@ -26,6 +26,8 @@ function LoginForm() {
   // Only same-site paths, so the login page can't be used as an open redirect.
   const rawNext = searchParams.get('next');
   const next = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/chat';
+  const checkEmail = searchParams.get('check-email');
+  const confirmed = searchParams.has('confirmed');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +38,16 @@ function LoginForm() {
       await signIn(email, password);
       router.replace(next);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      const code = (err as { code?: string })?.code;
+      setError(
+        code === 'email_not_confirmed'
+          ? 'Please confirm your email first — open the link we sent you, then sign in.'
+          : code === 'invalid_credentials'
+            ? 'Email or password is incorrect. If you just signed up, confirm your email first.'
+            : err instanceof Error
+              ? err.message
+              : 'Login failed',
+      );
     } finally {
       setLoading(false);
     }
@@ -56,6 +67,16 @@ function LoginForm() {
       }
     >
       <form onSubmit={handleSubmit} className="space-y-5">
+        {checkEmail && !error && (
+          <p className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+            Account created. We sent a confirmation link to <strong>{checkEmail}</strong> — open it, then sign in here.
+          </p>
+        )}
+        {confirmed && !error && (
+          <p className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+            Email confirmed. You can sign in now.
+          </p>
+        )}
         <FormError message={error} />
 
         <Field

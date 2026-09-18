@@ -2,6 +2,7 @@ import { embedQuery } from './embedder';
 import { similaritySearch } from './db';
 import { generate, generateJSON, generateStream, RERANK_MODEL, type LLMMessage } from './llm';
 import type { RetrievalResult, SearchFilters } from './types';
+import { ungradedNote } from '../grading';
 
 export type ChatMessage = LLMMessage;
 
@@ -19,6 +20,8 @@ export interface Citation {
   chapterTitle: string;
   hadithNumber: string;
   relevanceScore: number;
+  docType: string;
+  gradings?: RetrievalResult['gradings'];
 }
 
 export interface ChatOptions {
@@ -48,7 +51,8 @@ const SYSTEM_PROMPT = `You are a knowledgeable assistant for a Shia Islamic know
 5. Sources come from both Shia and Sunni collections; name the book when that distinction matters.
 6. Items marked "fiqh ruling" are a marja's rulings, not narrations. Never call them hadith.
 7. For fiqh questions, note you're providing information from sources, not a personal ruling.
-8. Reply in the language the user wrote in.`;
+8. Reply in the language the user wrote in.
+9. When you rely on a narration, mention its grading if one is given (e.g. "graded sahih by al-Majlisi"). If it is ungraded, don't call it authentic or weak. Never invent a grading.`;
 
 /**
  * Two-stage retrieval. Vector similarity alone finds text that looks like the
@@ -129,6 +133,8 @@ function formatSources(sources: RetrievalResult[]): string {
       if (s.matnTranslation) lines.push(`Translation: ${s.matnTranslation}`);
       if (s.gradings?.length) {
         lines.push(`Gradings: ${s.gradings.map((g) => `${g.gradedBy ?? 'unattributed'}: ${g.grade}`).join('; ')}`);
+      } else if (s.docType !== 'masail') {
+        lines.push(`Gradings: ${ungradedNote(s.bookTitle, s.docType)}`);
       }
       return lines.join('\n');
     })
@@ -161,6 +167,8 @@ function toCitations(sources: RetrievalResult[]): Citation[] {
     chapterTitle: s.chapterTitle,
     hadithNumber: s.hadithNumber,
     relevanceScore: s.relevanceScore,
+    docType: s.docType,
+    gradings: s.gradings,
   }));
 }
 

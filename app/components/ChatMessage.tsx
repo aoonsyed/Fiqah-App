@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { GradeBadge } from './CitationModal';
 
 interface Citation {
   id: string;
@@ -8,6 +9,8 @@ interface Citation {
   bookTitle: string;
   chapterTitle: string;
   hadithNumber: string;
+  gradings?: Array<{ grade: string }>;
+  docType?: string;
 }
 
 interface ChatMessageProps {
@@ -81,7 +84,10 @@ export function ChatMessage({ role, content, citations = [], onCitationClick }: 
                       {idx + 1}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-xs font-semibold text-white/80">{cit.bookTitle}</span>
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="truncate text-xs font-semibold text-white/80">{cit.bookTitle}</span>
+                        {cit.docType && cit.docType !== 'masail' && <GradeBadge grades={cit.gradings} />}
+                      </span>
                       <span className="block truncate text-[11px] text-white/40">
                         {cit.chapterTitle} · Hadith {cit.hadithNumber}
                       </span>

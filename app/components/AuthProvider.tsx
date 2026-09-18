@@ -17,7 +17,8 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  signUp: (email: string, password: string) => Promise<void>;
+  /** 'signed-in' when no confirmation is needed; 'confirm-email' when a link was emailed. */
+  signUp: (email: string, password: string) => Promise<'signed-in' | 'confirm-email'>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -64,8 +65,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${window.location.origin}/login?confirmed=1` },
+    });
     if (error) throw error;
+
+    // With email confirmation on, Supabase answers an already-registered email
+    // with a placeholder user (no identities) instead of an error, so that
+    // signup can't be used to discover who has an account. Nothing was created.
+    if (data.user && data.user.identities?.length === 0) {
+      throw new Error('An account with this email already exists. Sign in instead, or reset your password.');
+    }
+    return data.session ? 'signed-in' : 'confirm-email';
   };
 
   const signIn = async (email: string, password: string) => {

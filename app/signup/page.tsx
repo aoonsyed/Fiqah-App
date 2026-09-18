@@ -31,8 +31,8 @@ export default function SignupPage() {
 
     setLoading(true);
     try {
-      await signUp(email, password);
-      router.push('/login?signup=success');
+      const result = await signUp(email, password);
+      router.push(result === 'signed-in' ? '/chat' : `/login?check-email=${encodeURIComponent(email)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed');
     } finally {
