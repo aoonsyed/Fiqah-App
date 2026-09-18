@@ -74,11 +74,8 @@ function Chat() {
   const showLatest = () => {
     const scroller = scrollerRef.current;
     const anchor = lastUserRef.current;
-    if (!scroller) return;
-    if (!anchor) {
-      scrollThread(scroller.scrollHeight);
-      return;
-    }
+    // Nothing asked yet: stay at the greeting instead of jumping past it.
+    if (!scroller || !anchor) return;
     scrollThread(anchor.offsetTop - scroller.offsetTop - 12);
   };
 
@@ -96,6 +93,8 @@ function Chat() {
     const id = setInterval(() => setStage((s) => Math.min(s + 1, THINKING_STAGES.length - 1)), STAGE_MS);
     return () => clearInterval(id);
   }, [isLoading]);
+
+  const hasAsked = messages.some((m) => m.role === 'user');
 
   const handleSendMessage = async (text: string) => {
     const userMessage: Message = { id: Date.now().toString(), role: 'user', content: text };
@@ -147,7 +146,10 @@ function Chat() {
           <h1 className="mt-2.5 font-display text-3xl font-bold text-white">Ask the library</h1>
         </div>
         <button
-          onClick={() => setMessages([GREETING])}
+          onClick={() => {
+            setMessages([GREETING]);
+            scrollThread(0); // the panel keeps its offset otherwise
+          }}
           className="btn-ghost !px-4 !py-2 text-xs"
         >
           New conversation
@@ -206,8 +208,9 @@ function Chat() {
           </div>
         )}
 
-        {/* Keeps the newest exchange scrollable to the top of the panel. */}
-        <div className="h-[55vh]" aria-hidden />
+        {/* Room to scroll the newest exchange up to the top of the panel.
+            Only once a question exists, or the opening view starts scrollable. */}
+        {hasAsked && <div className="h-[55vh]" aria-hidden />}
       </div>
 
       <div className="-mx-5 sm:-mx-8">
