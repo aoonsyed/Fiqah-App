@@ -92,18 +92,18 @@ export function QiblaCompass({ bearing, size = 260 }: { bearing: number | null; 
         <svg viewBox="0 0 200 200" className="relative h-full w-full">
           <defs>
             <radialGradient id="dial" cx="50%" cy="35%">
-              <stop offset="0%" stopColor="#14322a" />
-              <stop offset="100%" stopColor="#060d14" />
+              <stop offset="0%" stopColor="rgb(var(--c-emerald-950))" />
+              <stop offset="100%" stopColor="rgb(var(--c-surface))" />
             </radialGradient>
             <linearGradient id="needle" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#fdf3d3" />
-              <stop offset="60%" stopColor="#efcd6b" />
-              <stop offset="100%" stopColor="#c8932a" />
+              <stop offset="0%" stopColor="rgb(var(--c-gold-100))" />
+              <stop offset="60%" stopColor="rgb(var(--c-gold-300))" />
+              <stop offset="100%" stopColor="rgb(var(--c-gold-500))" />
             </linearGradient>
           </defs>
 
-          <circle cx="100" cy="100" r="95" fill="url(#dial)" stroke="rgba(255,255,255,.12)" />
-          <circle cx="100" cy="100" r="88" fill="none" stroke="rgba(239,205,107,.14)" strokeDasharray="2 6" />
+          <circle cx="100" cy="100" r="95" fill="url(#dial)" stroke="rgb(var(--c-fg) / .16)" />
+          <circle cx="100" cy="100" r="88" fill="none" stroke="rgb(var(--c-gold-300) / .18)" strokeDasharray="2 6" />
 
           {/* Everything below sits in the earth frame and counter-rotates with the device */}
           <g
@@ -122,7 +122,7 @@ export function QiblaCompass({ bearing, size = 260 }: { bearing: number | null; 
                   y1={major ? 10 : 13}
                   x2="100"
                   y2={major ? 20 : 16}
-                  stroke={major ? 'rgba(239,205,107,.7)' : 'rgba(255,255,255,.18)'}
+                  stroke={major ? 'rgb(var(--c-gold-300) / .75)' : 'rgb(var(--c-fg) / .22)'}
                   strokeWidth={major ? 2 : 1}
                   transform={`rotate(${t} 100 100)`}
                 />
@@ -153,18 +153,18 @@ export function QiblaCompass({ bearing, size = 260 }: { bearing: number | null; 
                 transition: 'transform 1.4s cubic-bezier(.22,1,.36,1)',
               }}
             >
-              <line x1="100" y1="100" x2="100" y2="46" stroke="rgba(239,205,107,.25)" strokeWidth="1" />
+              <line x1="100" y1="100" x2="100" y2="46" stroke="rgb(var(--c-gold-300) / .3)" strokeWidth="1" />
               <polygon points="100,38 105.5,100 100,92 94.5,100" fill="url(#needle)" />
-              <polygon points="100,162 104,100 100,108 96,100" fill="rgba(255,255,255,.1)" />
-              <circle cx="100" cy="44" r="8.5" fill="#05090f" stroke="#efcd6b" strokeWidth="1.5" />
+              <polygon points="100,162 104,100 100,108 96,100" fill="rgb(var(--c-fg) / .12)" />
+              <circle cx="100" cy="44" r="8.5" fill="rgb(var(--c-bg))" stroke="rgb(var(--c-gold-300))" strokeWidth="1.5" />
               <text x="100" y="47.5" textAnchor="middle" className="text-[8px]">
                 🕋
               </text>
             </g>
           </g>
 
-          <circle cx="100" cy="100" r="5" fill="#efcd6b" />
-          <circle cx="100" cy="100" r="11" fill="none" stroke="rgba(239,205,107,.3)" />
+          <circle cx="100" cy="100" r="5" fill="rgb(var(--c-gold-300))" />
+          <circle cx="100" cy="100" r="11" fill="none" stroke="rgb(var(--c-gold-300) / .35)" />
         </svg>
       </div>
 

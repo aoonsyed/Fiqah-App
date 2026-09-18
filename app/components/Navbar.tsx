@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/app/components/AuthProvider';
+import { ThemeToggle } from '@/app/components/ThemeProvider';
 
 const LINKS = [
   { href: '/', label: 'Home' },
@@ -69,6 +70,7 @@ export function Navbar() {
         </div>
 
         <div className="hidden items-center gap-3 lg:flex">
+          <ThemeToggle />
           {user ? (
             <>
               <Link
@@ -94,17 +96,20 @@ export function Navbar() {
           )}
         </div>
 
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className="grid h-10 w-10 place-items-center rounded-lg border border-white/10 lg:hidden"
-          aria-label="Toggle menu"
-        >
-          <span className="flex w-5 flex-col gap-1.5">
-            <span className={`h-0.5 w-full bg-white transition-all duration-300 ${open ? 'translate-y-2 rotate-45' : ''}`} />
-            <span className={`h-0.5 w-full bg-white transition-all duration-300 ${open ? 'opacity-0' : ''}`} />
-            <span className={`h-0.5 w-full bg-white transition-all duration-300 ${open ? '-translate-y-2 -rotate-45' : ''}`} />
-          </span>
-        </button>
+        <div className="flex items-center gap-2 lg:hidden">
+          <ThemeToggle />
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className="grid h-10 w-10 place-items-center rounded-lg border border-white/10"
+            aria-label="Toggle menu"
+          >
+            <span className="flex w-5 flex-col gap-1.5">
+              <span className={`h-0.5 w-full bg-white transition-all duration-300 ${open ? 'translate-y-2 rotate-45' : ''}`} />
+              <span className={`h-0.5 w-full bg-white transition-all duration-300 ${open ? 'opacity-0' : ''}`} />
+              <span className={`h-0.5 w-full bg-white transition-all duration-300 ${open ? '-translate-y-2 -rotate-45' : ''}`} />
+            </span>
+          </button>
+        </div>
       </nav>
 
       <div

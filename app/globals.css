@@ -4,12 +4,68 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --bg: #05090f;
-  --surface: 255 255 255 / 0.04;
-  --border: 255 255 255 / 0.09;
-  --ink: #e8eef5;
-  --muted: #8fa3b8;
+:root,
+:root[data-theme='dark'] {
+  /* Channel triplets: Tailwind composes them with its own alpha values. */
+  --c-fg: 232 238 245; /* "white" utilities */
+  --c-shadow: 0 0 0;
+  --c-bg: 5 9 15;
+  --c-surface: 10 16 24;
+  --c-surface-2: 17 26 38;
+  --c-surface-3: 26 38 54;
+
+  --c-emerald-350: 74 222 159;
+  --c-emerald-500: 16 185 129;
+  --c-emerald-800: 6 78 59;
+  --c-emerald-900: 6 60 46;
+  --c-emerald-950: 3 38 30;
+
+  --c-gold-100: 253 243 211;
+  --c-gold-200: 247 227 161;
+  --c-gold-300: 239 205 107;
+  --c-gold-400: 224 178 60;
+  --c-gold-500: 200 147 42;
+
+  /* Text on a gold button, and the sheen/pattern overlays. */
+  --on-accent: #05090f;
+  --sheen: rgba(239, 205, 107, 0.13);
+  --card-shadow: rgba(0, 0, 0, 0.8);
+  --scrollbar-track: #0a1018;
+  --aurora-opacity: 1;
+}
+
+/**
+ * Light theme. The same utilities are reused: "white" becomes near-black ink,
+ * and the night surfaces become paper tones. Gold is darkened so gold text
+ * stays readable on a light background, while buttons keep the brighter gold.
+ */
+:root[data-theme='light'] {
+  --c-fg: 15 27 41;
+  --c-shadow: 15 27 41;
+  --c-bg: 249 250 251;
+  --c-surface: 255 255 255;
+  --c-surface-2: 241 245 249;
+  --c-surface-3: 226 232 240;
+
+  --c-emerald-350: 4 120 87;
+  --c-emerald-500: 16 185 129;
+  --c-emerald-800: 6 95 70;
+  --c-emerald-900: 4 120 87;
+  --c-emerald-950: 236 253 245;
+
+  --c-gold-100: 120 83 8;
+  --c-gold-200: 146 100 12;
+  --c-gold-300: 180 131 24;
+  --c-gold-400: 202 149 30;
+  --c-gold-500: 161 116 20;
+
+  --on-accent: #ffffff;
+  --sheen: rgba(180, 131, 24, 0.12);
+  --card-shadow: rgba(15, 27, 41, 0.14);
+  --scrollbar-track: #e9edf2;
+  --aurora-opacity: 0.35;
+
+  color-scheme: light;
 }
 
 * {
@@ -25,14 +81,15 @@ html {
 
 body {
   font-family: Inter, system-ui, sans-serif;
-  background: var(--bg);
-  color: var(--ink);
+  background: rgb(var(--c-bg));
+  color: rgb(var(--c-fg));
   overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 ::selection {
-  background: #efcd6b;
-  color: #05090f;
+  background: rgb(var(--c-gold-300));
+  color: var(--on-accent);
 }
 
 ::-webkit-scrollbar {
@@ -40,15 +97,15 @@ body {
   height: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: #0a1018;
+  background: var(--scrollbar-track);
 }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(#1f6f52, #0f3d2e);
+  background: linear-gradient(rgb(var(--c-emerald-800)), rgb(var(--c-emerald-950)));
   border-radius: 99px;
-  border: 2px solid #0a1018;
+  border: 2px solid var(--scrollbar-track);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(#efcd6b, #c8932a);
+  background: linear-gradient(rgb(var(--c-gold-300)), rgb(var(--c-gold-500)));
 }
 
 @layer components {
@@ -66,7 +123,7 @@ body {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(115deg, transparent 35%, rgba(239, 205, 107, 0.13) 50%, transparent 65%);
+    background: linear-gradient(115deg, transparent 35%, var(--sheen) 50%, transparent 65%);
     background-size: 250% 100%;
     background-position: 200% 0;
     opacity: 0;
@@ -79,13 +136,14 @@ body {
   }
   .card:hover {
     @apply -translate-y-1.5 border-gold-300/40;
-    box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(239, 205, 107, 0.1);
+    box-shadow: 0 24px 60px -20px var(--card-shadow), 0 0 0 1px rgba(180, 131, 24, 0.12);
   }
 
   .btn-gold {
     @apply relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-full
-      bg-gradient-to-r from-gold-300 to-gold-500 px-6 py-3 text-sm font-semibold text-night-900
+      bg-gradient-to-r from-gold-300 to-gold-500 px-6 py-3 text-sm font-semibold
       shadow-lg shadow-gold-500/20 transition-transform duration-300 hover:scale-[1.04] active:scale-95;
+    color: var(--on-accent);
   }
 
   .btn-ghost {
@@ -95,7 +153,14 @@ body {
   }
 
   .text-gradient-gold {
-    background: linear-gradient(100deg, #fdf3d3, #efcd6b, #c8932a, #efcd6b, #fdf3d3);
+    background: linear-gradient(
+      100deg,
+      rgb(var(--c-gold-100)),
+      rgb(var(--c-gold-300)),
+      rgb(var(--c-gold-500)),
+      rgb(var(--c-gold-300)),
+      rgb(var(--c-gold-100))
+    );
     background-size: 200% auto;
     -webkit-background-clip: text;
     background-clip: text;
@@ -116,9 +181,9 @@ body {
 @layer utilities {
   /* Eight-point Islamic star lattice — the signature backdrop motif */
   .pattern-girih {
-    background-image: radial-gradient(circle at 50% 50%, rgba(239, 205, 107, 0.11) 1.2px, transparent 1.2px),
-      linear-gradient(45deg, transparent 47%, rgba(74, 222, 159, 0.05) 49%, rgba(74, 222, 159, 0.05) 51%, transparent 53%),
-      linear-gradient(-45deg, transparent 47%, rgba(74, 222, 159, 0.05) 49%, rgba(74, 222, 159, 0.05) 51%, transparent 53%);
+    background-image: radial-gradient(circle at 50% 50%, rgb(var(--c-gold-300) / 0.13) 1.2px, transparent 1.2px),
+      linear-gradient(45deg, transparent 47%, rgb(var(--c-emerald-350) / 0.06) 49%, rgb(var(--c-emerald-350) / 0.06) 51%, transparent 53%),
+      linear-gradient(-45deg, transparent 47%, rgb(var(--c-emerald-350) / 0.06) 49%, rgb(var(--c-emerald-350) / 0.06) 51%, transparent 53%);
     background-size: 34px 34px, 68px 68px, 68px 68px;
   }
 

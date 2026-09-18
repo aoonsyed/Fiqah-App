@@ -4,10 +4,38 @@ const config: Config = {
   content: ['./app/**/*.{js,ts,jsx,tsx,mdx}', './lib/**/*.{js,ts,jsx,tsx,mdx}'],
   theme: {
     extend: {
+      /**
+       * Every palette colour resolves through a CSS variable, so switching
+       * theme is a change of values rather than of class names — the ~300
+       * `text-white/55`-style utilities already in the components keep working.
+       *
+       * `white` is redefined as the foreground: near-white in dark mode,
+       * near-black in light. `night` stays the dark surface family, which in
+       * light mode holds the light surfaces.
+       */
       colors: {
-        night: { 900: '#05090f', 800: '#0a1018', 700: '#111a26', 600: '#1a2636' },
-        emerald: { 350: '#4ade9f' },
-        gold: { 100: '#fdf3d3', 200: '#f7e3a1', 300: '#efcd6b', 400: '#e0b23c', 500: '#c8932a' },
+        white: 'rgb(var(--c-fg) / <alpha-value>)',
+        black: 'rgb(var(--c-shadow) / <alpha-value>)',
+        night: {
+          900: 'rgb(var(--c-bg) / <alpha-value>)',
+          800: 'rgb(var(--c-surface) / <alpha-value>)',
+          700: 'rgb(var(--c-surface-2) / <alpha-value>)',
+          600: 'rgb(var(--c-surface-3) / <alpha-value>)',
+        },
+        emerald: {
+          350: 'rgb(var(--c-emerald-350) / <alpha-value>)',
+          500: 'rgb(var(--c-emerald-500) / <alpha-value>)',
+          800: 'rgb(var(--c-emerald-800) / <alpha-value>)',
+          900: 'rgb(var(--c-emerald-900) / <alpha-value>)',
+          950: 'rgb(var(--c-emerald-950) / <alpha-value>)',
+        },
+        gold: {
+          100: 'rgb(var(--c-gold-100) / <alpha-value>)',
+          200: 'rgb(var(--c-gold-200) / <alpha-value>)',
+          300: 'rgb(var(--c-gold-300) / <alpha-value>)',
+          400: 'rgb(var(--c-gold-400) / <alpha-value>)',
+          500: 'rgb(var(--c-gold-500) / <alpha-value>)',
+        },
       },
       fontFamily: {
         display: ['"Cormorant Garamond"', 'Georgia', 'serif'],
