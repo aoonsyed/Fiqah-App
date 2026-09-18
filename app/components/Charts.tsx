@@ -14,12 +14,13 @@ export function BarChart({ data, height = 220 }: { data: Datum[]; height?: numbe
   return (
     <div className="flex items-end gap-3" style={{ height }}>
       {data.map((d, i) => (
-        <div key={d.label} className="group flex flex-1 flex-col items-center justify-end gap-2">
+        // h-full: the bars size by percentage, which needs a resolved parent height.
+        <div key={d.label} className="group flex h-full flex-1 flex-col items-center justify-end gap-2">
           <span className="text-xs font-semibold tabular-nums text-white/70 transition group-hover:text-gold-200">
             {d.value.toLocaleString()}
           </span>
           <div
-            className="w-full origin-bottom rounded-t-lg transition-all duration-300 group-hover:brightness-125"
+            className="w-full min-h-[4px] flex-shrink origin-bottom rounded-t-lg transition-all duration-300 group-hover:brightness-125"
             style={{
               height: `${(d.value / max) * 100}%`,
               minHeight: 4,

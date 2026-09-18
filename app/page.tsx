@@ -7,7 +7,7 @@ import { compassDirection, distanceMeters, qiblaBearing } from '@/lib/qibla';
 import { QiblaCompass } from '@/app/components/QiblaCompass';
 import { PrayerTimeline, type PrayerTimes } from '@/app/components/PrayerTimeline';
 import { HadithSlider } from '@/app/components/HadithSlider';
-import { BarChart } from '@/app/components/Charts';
+import { CorpusExplorer } from '@/app/components/CorpusExplorer';
 import { Reveal, CountUp } from '@/app/components/Reveal';
 
 interface CorpusStats {
@@ -15,7 +15,7 @@ interface CorpusStats {
   totalHadiths: number;
   /** null when the count could not be read — never render it as 0. */
   totalChunks: number | null;
-  books: { title: string; count: number }[];
+  books: { title: string; count: number; docType?: string; author?: string | null }[];
 }
 
 const FEATURES = [
@@ -48,8 +48,6 @@ const FEATURES = [
     accent: 'from-violet-500/20',
   },
 ];
-
-const CHART_COLORS = ['#4ade9f', '#efcd6b', '#38bdf8', '#a78bfa', '#fb923c', '#f472b6'];
 
 export default function Home() {
   const { location, status } = useLiveLocation();
@@ -92,11 +90,6 @@ export default function Home() {
   // Books are the honest test of an empty corpus: a count that failed to load
   // must not be read as "nothing is there".
   const hasCorpus = !!stats && stats.totalBooks > 0;
-  const bookData = (stats?.books ?? [])
-    .filter((b) => b.count > 0)
-    .slice(0, 6)
-    .map((b, i) => ({ label: b.title, value: b.count, color: CHART_COLORS[i % CHART_COLORS.length] }));
-
   return (
     <main>
       {/* ---------- Hero ---------- */}
@@ -274,24 +267,15 @@ export default function Home() {
       <section className="mx-auto mt-32 max-w-7xl px-5 sm:px-8">
         <Reveal className="max-w-2xl">
           <p className="eyebrow">The corpus</p>
-          <h2 className="section-title mt-5">Indexed, chunked, embedded</h2>
         </Reveal>
 
-        <Reveal className="mt-14">
-          <div className="card p-8">
-            {!statsReady ? (
-              <div className="h-[286px] animate-pulse rounded-xl bg-white/[0.03]" />
-            ) : hasCorpus && bookData.length > 0 ? (
-              <>
-                <div className="flex items-baseline justify-between">
-                  <h3 className="font-display text-xl font-bold text-white">Narrations per book</h3>
-                  <span className="text-xs uppercase tracking-[0.14em] text-white/35">live from the index</span>
-                </div>
-                <div className="mt-8">
-                  <BarChart data={bookData} height={230} />
-                </div>
-              </>
-            ) : (
+        <Reveal className="mt-8">
+          {!statsReady ? (
+            <div className="card h-[420px] animate-pulse p-8" />
+          ) : hasCorpus && (stats?.books.length ?? 0) > 0 ? (
+            <CorpusExplorer books={stats!.books} />
+          ) : (
+            <div className="card p-8">
               <div className="py-14 text-center">
                 <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-white/10 bg-white/5">
                   <svg viewBox="0 0 24 24" className="h-6 w-6 text-white/30" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -317,8 +301,8 @@ export default function Home() {
                   </Link>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </Reveal>
       </section>
 

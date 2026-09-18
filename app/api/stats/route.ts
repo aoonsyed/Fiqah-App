@@ -15,7 +15,7 @@ export async function GET() {
   try {
     const { data: perBook, error: booksError } = await supabase
       .from('books')
-      .select('title, total_hadiths')
+      .select('title, total_hadiths, doc_type, author')
       .order('total_hadiths', { ascending: false });
     if (booksError) throw booksError;
 
@@ -30,7 +30,12 @@ export async function GET() {
       totalBooks: books.length,
       totalHadiths,
       totalChunks: chunks.error ? null : (chunks.count ?? 0),
-      books: books.map((b) => ({ title: b.title, count: b.total_hadiths ?? 0 })),
+      books: books.map((b) => ({
+        title: b.title,
+        count: b.total_hadiths ?? 0,
+        docType: b.doc_type ?? 'hadith',
+        author: b.author ?? null,
+      })),
     });
   } catch (error) {
     return NextResponse.json(
