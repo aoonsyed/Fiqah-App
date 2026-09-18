@@ -1,27 +1,36 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase-server';
 import { NextResponse } from 'next/server';
 
+// Counts change only on ingestion, and an exact count over 126k rows is slow.
+export const revalidate = 300;
 
-// Public corpus counts only — never user or conversation data.
+/**
+ * Public corpus counts only — never user or conversation data.
+ *
+ * A failed count returns null, not 0: under load an exact count can exceed the
+ * statement timeout, and reporting zero made the homepage announce an empty
+ * corpus while the books were plainly there.
+ */
 export async function GET() {
   try {
-    const [books, hadiths, chunks] = await Promise.all([
-      supabase.from('books').select('*', { count: 'exact', head: true }),
-      supabase.from('hadiths').select('*', { count: 'exact', head: true }),
-      supabase.from('hadith_chunks').select('*', { count: 'exact', head: true }),
-    ]);
+    const { data: perBook, error: booksError } = await supabase
+      .from('books')
+      .select('title, total_hadiths')
+      .order('total_hadiths', { ascending: false });
+    if (booksError) throw booksError;
 
-    if (books.error) throw books.error;
+    const books = perBook ?? [];
+    // Summing the per-book totals avoids a full-table count of `hadiths`.
+    const totalHadiths = books.reduce((sum, b) => sum + (b.total_hadiths ?? 0), 0);
 
-    const { data: perBook } = await supabase.from('books').select('title, total_hadiths').order('total_hadiths', {
-      ascending: false,
-    });
+    const chunks = await supabase.from('hadith_chunks').select('*', { count: 'exact', head: true });
+    if (chunks.error) console.error('Chunk count failed:', chunks.error.message);
 
     return NextResponse.json({
-      totalBooks: books.count || 0,
-      totalHadiths: hadiths.count || 0,
-      totalChunks: chunks.count || 0,
-      books: (perBook ?? []).map((b) => ({ title: b.title, count: b.total_hadiths ?? 0 })),
+      totalBooks: books.length,
+      totalHadiths,
+      totalChunks: chunks.error ? null : (chunks.count ?? 0),
+      books: books.map((b) => ({ title: b.title, count: b.total_hadiths ?? 0 })),
     });
   } catch (error) {
     return NextResponse.json(

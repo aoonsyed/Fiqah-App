@@ -13,7 +13,8 @@ import { Reveal, CountUp } from '@/app/components/Reveal';
 interface CorpusStats {
   totalBooks: number;
   totalHadiths: number;
-  totalChunks: number;
+  /** null when the count could not be read — never render it as 0. */
+  totalChunks: number | null;
   books: { title: string; count: number }[];
 }
 
@@ -88,7 +89,9 @@ export default function Home() {
       .catch(() => {});
   }, [location]);
 
-  const hasCorpus = !!stats && stats.totalHadiths > 0;
+  // Books are the honest test of an empty corpus: a count that failed to load
+  // must not be read as "nothing is there".
+  const hasCorpus = !!stats && stats.totalBooks > 0;
   const bookData = (stats?.books ?? [])
     .filter((b) => b.count > 0)
     .slice(0, 6)
@@ -134,14 +137,17 @@ export default function Home() {
             {/* Live corpus counts — empty until books are ingested */}
             <dl className="mt-14 grid max-w-lg grid-cols-3 gap-6 border-t border-white/10 pt-8">
               {[
-                { v: stats?.totalHadiths ?? 0, l: 'Narrations' },
-                { v: stats?.totalBooks ?? 0, l: 'Books' },
-                { v: stats?.totalChunks ?? 0, l: 'Chunks' },
+                { v: stats?.totalHadiths ?? null, l: 'Narrations' },
+                { v: stats?.totalBooks ?? null, l: 'Books' },
+                { v: stats?.totalChunks ?? null, l: 'Chunks' },
               ].map((s) => (
                 <div key={s.l}>
                   <dd className="font-display text-3xl font-bold text-white tabular-nums">
                     {!statsReady ? (
                       <span className="inline-block h-8 w-16 animate-pulse rounded bg-white/10" />
+                    ) : s.v === null ? (
+                      // The count didn't load; a zero here would be a lie.
+                      '—'
                     ) : (
                       <CountUp value={s.v} />
                     )}
@@ -152,7 +158,7 @@ export default function Home() {
             </dl>
             {statsReady && !hasCorpus && (
               <p className="mt-4 text-xs text-white/35">
-                The corpus is empty — ingest a book from the{' '}
+                No books have been ingested yet — add one from the{' '}
                 <Link href="/admin" className="text-gold-200 hover:underline">
                   admin panel
                 </Link>{' '}
@@ -292,14 +298,24 @@ export default function Home() {
                     <path d="M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
                   </svg>
                 </span>
-                <p className="mt-5 font-display text-2xl text-white/75">No books indexed yet</p>
-                <p className="mx-auto mt-2 max-w-md text-sm text-white/40">
-                  Once you ingest a book, its narration counts appear here — drawn straight from the database, not
-                  estimated.
+                {/* A failed request is not an empty corpus — say which it is. */}
+                <p className="mt-5 font-display text-2xl text-white/75">
+                  {statsReady && !stats ? 'Corpus counts unavailable' : 'No books indexed yet'}
                 </p>
-                <Link href="/admin" className="btn-ghost mt-7">
-                  Go to admin panel
-                </Link>
+                <p className="mx-auto mt-2 max-w-md text-sm text-white/40">
+                  {statsReady && !stats
+                    ? 'The library is there, but its counts could not be read just now. Reload to try again.'
+                    : 'Once you ingest a book, its narration counts appear here — drawn straight from the database, not estimated.'}
+                </p>
+                {statsReady && !stats ? (
+                  <button type="button" onClick={() => window.location.reload()} className="btn-ghost mt-7">
+                    Reload
+                  </button>
+                ) : (
+                  <Link href="/admin" className="btn-ghost mt-7">
+                    Go to admin panel
+                  </Link>
+                )}
               </div>
             )}
           </div>
