@@ -1,15 +1,25 @@
 {
-  "name": "islamic-books-rag",
-  "version": "1.0.0",
+  "name": "shia-fiqh-platform",
+  "version": "2.0.0",
   "private": true,
-  "description": "Shia Islamic Knowledge App with RAG over hadith corpus",
+  "description": "Comparative Shia fiqh platform — maraji corpus, search, and grounded Q&A",
   "scripts": {
     "dev": "node --max-old-space-size=4096 node_modules/next/dist/bin/next dev -p 3000",
     "build": "node --max-old-space-size=4096 node_modules/next/dist/bin/next build",
     "start": "next start -p 3000",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
-    "import": "tsx --env-file=.env.local scripts/import.ts"
+    "import": "tsx --env-file=.env.local scripts/import.ts",
+    "fiqh:seed": "tsx --env-file=.env.local scripts/fiqh/seed-corpus.ts",
+    "fiqh:migrate": "tsx --env-file=.env.local scripts/fiqh/apply-schema.ts",
+    "fiqh:import": "tsx --env-file=.env.local scripts/fiqh/import-real-corpus.ts",
+    "fiqh:seed-maraji": "tsx --env-file=.env.local scripts/fiqh/seed-remaining-maraji.ts",
+    "fiqh:expand": "tsx --env-file=.env.local scripts/fiqh/expand-corpus.ts",
+    "fiqh:expand-existing": "tsx --env-file=.env.local scripts/fiqh/expand-existing-maraji.ts",
+    "fiqh:seed-mass": "tsx --env-file=.env.local scripts/fiqh/seed-mass-corpus.ts",
+    "fiqh:seed-aggressive": "tsx --env-file=.env.local scripts/fiqh/seed-aggressive.ts",
+    "fiqh:setup": "npm run fiqh:migrate && npm run fiqh:import -- --wipe",
+    "db:probe": "tsx --env-file=.env.local scripts/probe-supabase.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
@@ -37,9 +47,11 @@
   "devDependencies": {
     "@types/node": "22.10.5",
     "@types/pdf-parse": "^1.1.5",
+    "@types/pg": "^8.23.1",
     "@types/react": "19.0.7",
     "@types/react-dom": "19.0.3",
     "dotenv": "^17.4.2",
+    "pg": "^8.23.0",
     "ts-node": "^10.9.1",
     "tsx": "^4.23.13",
     "typescript": "5.7.3"

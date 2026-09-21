@@ -1,16 +1,22 @@
 import { errorMessage } from '@/lib/errors';
+import { fiqhTablesReady, getCorpusStats } from '@/lib/fiqh/db';
 import { NextResponse } from 'next/server';
-import { healthCheck } from '@/lib/rag/db';
 
-export const revalidate = 60; // Cache for 1 minute
+export const revalidate = 60;
 
 export async function GET() {
   try {
-    const dbHealthy = await healthCheck();
+    const tables = await fiqhTablesReady();
+    const stats = tables ? await getCorpusStats() : null;
 
     return NextResponse.json({
-      status: dbHealthy ? 'ok' : 'degraded',
-      database: dbHealthy ? 'connected' : 'disconnected',
+      status: tables ? 'ok' : 'degraded',
+      database: tables ? 'connected' : 'disconnected',
+      fiqh: {
+        schema: tables,
+        questions: stats?.questions ?? 0,
+        fatwas: stats?.fatwas ?? 0,
+      },
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

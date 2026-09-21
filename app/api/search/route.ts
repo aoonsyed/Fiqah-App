@@ -1,86 +1,71 @@
 import { errorMessage } from '@/lib/errors';
+import { compareQuestion, getCategoryBySlug, getMarjaBySlug, searchFiqhRobust } from '@/lib/fiqh/db';
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin as supabase } from '@/lib/supabase-server';
 import { rateLimit } from '@/lib/rate-limit';
-import { unauthorized, verifyUserRequest } from '@/lib/auth-server';
+
+function clientKey(request: NextRequest): string {
+  const forwarded = request.headers.get('x-forwarded-for');
+  if (forwarded) return forwarded.split(',')[0]?.trim() || 'anon';
+  return request.headers.get('x-real-ip') || 'anon';
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await verifyUserRequest(request);
-    if (!user) return unauthorized();
-
-    // Rate limit: 30 searches per minute
-    if (!rateLimit(`search:${user.id}`, 30, 60)) {
-      return NextResponse.json(
-        { error: 'Too many searches. Please try again in a minute.' },
-        { status: 429 },
-      );
+    if (!rateLimit(`fiqh-search:${clientKey(request)}`, 40, 60)) {
+      return NextResponse.json({ error: 'Too many searches. Try again shortly.' }, { status: 429 });
     }
 
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q');
-    const book = searchParams.get('book');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 50);
+    const categorySlug = searchParams.get('category');
+    const marjaSlug = searchParams.get('marja');
 
-    if (!q) {
-      return NextResponse.json(
-        { error: 'Search query (q) is required' },
-        { status: 400 },
-      );
+    if (!q?.trim()) {
+      return NextResponse.json({ error: 'Search query (q) is required' }, { status: 400 });
     }
 
-    // Search hadiths by matn text (case-insensitive)
-    let query = supabase
-      .from('hadiths')
-      .select(
-        `
-        id,
-        hadith_number,
-        matn_arabic,
-        matn_translation,
-        isnad_raw,
-        grading,
-        book_id,
-        chapter_id,
-        books!inner(title),
-        chapters(title)
-      `,
-      )
-      .ilike('matn_arabic', `%${q}%`)
-      .limit(limit);
+    let filterCategoryId: string | undefined;
+    let filterMarjaId: string | undefined;
 
-    if (book) {
-      query = query.eq('books.title', book);
+    if (categorySlug) {
+      const cat = await getCategoryBySlug(categorySlug);
+      if (!cat) return NextResponse.json({ error: 'Category not found' }, { status: 404 });
+      filterCategoryId = cat.id;
+    }
+    if (marjaSlug) {
+      const marja = await getMarjaBySlug(marjaSlug);
+      if (!marja) return NextResponse.json({ error: 'Marja not found' }, { status: 404 });
+      filterMarjaId = marja.id;
     }
 
-    const { data, error } = await query;
+    const compareTop = searchParams.get('compareTop') === '1';
+    const results = await searchFiqhRobust(q.trim(), limit, filterCategoryId, filterMarjaId);
 
-    if (error) throw error;
-
-    const results = data?.map((h: any) => ({
-      id: h.id,
-      hadithNumber: h.hadith_number,
-      matnArabic: h.matn_arabic,
-      matnTranslation: h.matn_translation,
-      isnadRaw: h.isnad_raw,
-      grading: h.grading,
-      bookTitle: h.books.title,
-      chapterTitle: h.chapters?.title ?? '',
-    })) || [];
+    let topCompare = null;
+    if (compareTop && results[0]) {
+      topCompare = await compareQuestion(results[0].questionSlug);
+    }
 
     return NextResponse.json({
       query: q,
-      results: results,
+      topCompare,
+      results: results.map((r) => ({
+        id: r.questionId,
+        slug: r.questionSlug,
+        questionEn: r.questionEn,
+        questionAr: r.questionAr,
+        categorySlug: r.categorySlug,
+        subcategorySlug: r.subcategorySlug,
+        marjaCount: r.marjaCount,
+        topRulingType: r.topRulingType,
+      })),
       count: results.length,
     });
   } catch (error) {
     console.error('Search error:', error);
-
     return NextResponse.json(
-      {
-        error: 'Search failed',
-        message: errorMessage(error),
-      },
+      { error: 'Search failed', message: errorMessage(error) },
       { status: 500 },
     );
   }

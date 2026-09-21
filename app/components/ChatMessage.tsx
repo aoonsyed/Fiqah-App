@@ -1,16 +1,18 @@
 'use client';
 
 import React from 'react';
-import { GradeBadge } from './CitationModal';
+import { RulingBadge } from '@/app/components/RulingBadge';
+import type { RulingType } from '@/lib/fiqh/types';
 
 interface Citation {
   id: string;
-  hadithId?: string;
-  bookTitle: string;
-  chapterTitle: string;
-  hadithNumber: string;
-  gradings?: Array<{ grade: string }>;
-  docType?: string;
+  /** Fiqh corpus */
+  questionSlug?: string;
+  marjaName?: string;
+  questionEn?: string;
+  categorySlug?: string;
+  subcategorySlug?: string;
+  rulingType?: RulingType;
 }
 
 interface ChatMessageProps {
@@ -26,14 +28,15 @@ export function ChatMessage({ role, content, citations = [], onCitationClick }: 
   const parseContent = (text: string) =>
     text.split(/(\[\[citation:\d+\]\])/g).map((part, idx) => {
       const match = part.match(/\[\[citation:(\d+)\]\]/);
-      const citation = match ? citations[parseInt(match[1]) - 1] : undefined;
+      const citation = match ? citations[parseInt(match[1], 10) - 1] : undefined;
 
       if (match && citation) {
         return (
           <button
             key={idx}
+            type="button"
             onClick={() => onCitationClick?.(citation)}
-            title={`${citation.bookTitle} — ${citation.chapterTitle}`}
+            title={citation.marjaName ?? citation.questionEn}
             className="mx-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-md border border-gold-300/40 bg-gold-300/15 px-1.5 align-baseline text-[11px] font-bold text-gold-200 transition hover:bg-gold-300 hover:text-night-900"
           >
             {match[1]}
@@ -72,11 +75,12 @@ export function ChatMessage({ role, content, citations = [], onCitationClick }: 
 
         {!isUser && citations.length > 0 && (
           <div className="mt-5 border-t border-white/10 pt-4">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-gold-300/80">Sources</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-gold-300/80">Fatwa sources</p>
             <ul className="mt-3 space-y-2">
               {citations.map((cit, idx) => (
-                <li key={idx}>
+                <li key={cit.id ?? idx}>
                   <button
+                    type="button"
                     onClick={() => onCitationClick?.(cit)}
                     className="group flex w-full items-center gap-3 rounded-lg border border-white/8 bg-white/[0.03] px-3 py-2 text-left transition hover:border-gold-300/35 hover:bg-white/[0.07]"
                   >
@@ -84,12 +88,16 @@ export function ChatMessage({ role, content, citations = [], onCitationClick }: 
                       {idx + 1}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span className="truncate text-xs font-semibold text-white/80">{cit.bookTitle}</span>
-                        {cit.docType && cit.docType !== 'masail' && <GradeBadge grades={cit.gradings} />}
+                      <span className="flex min-w-0 flex-wrap items-center gap-2">
+                        <span className="truncate text-xs font-semibold text-white/80">
+                          {cit.marjaName ?? 'Marja'}
+                        </span>
+                        {cit.rulingType && <RulingBadge type={cit.rulingType} />}
                       </span>
                       <span className="block truncate text-[11px] text-white/40">
-                        {cit.chapterTitle} · Hadith {cit.hadithNumber}
+                        {cit.categorySlug && cit.subcategorySlug
+                          ? `${cit.categorySlug} / ${cit.subcategorySlug}`
+                          : cit.questionEn}
                       </span>
                     </span>
                     <svg

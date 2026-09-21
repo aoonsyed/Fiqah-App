@@ -4,10 +4,11 @@ const COLUMNS = [
   {
     title: 'Explore',
     links: [
-      { href: '/chat', label: 'Ask a question' },
-      { href: '/search', label: 'Search hadiths' },
-      { href: '/qibla', label: 'Qibla finder' },
+      { href: '/chat', label: 'Ask fiqh' },
+      { href: '/search', label: 'Search masail' },
       { href: '/prayer-times', label: 'Prayer times' },
+      { href: '/qibla', label: 'Qibla compass' },
+      { href: '/principles', label: 'Legal principles' },
     ],
   },
   {
@@ -15,16 +16,14 @@ const COLUMNS = [
     links: [
       { href: '/login', label: 'Sign in' },
       { href: '/signup', label: 'Create account' },
-      { href: '/admin', label: 'Admin panel' },
-      { href: '/admin/analytics', label: 'Analytics' },
+      { href: '/admin', label: 'Admin' },
     ],
   },
   {
     title: 'System',
     links: [
       { href: '/api/health', label: 'API health' },
-      { href: '/admin/dashboard', label: 'Corpus stats' },
-      { href: '/api/hadith/daily', label: 'Daily hadith' },
+      { href: '/api/stats', label: 'Corpus stats' },
     ],
   },
 ];
@@ -44,16 +43,12 @@ export function Footer() {
                   <path d="M12 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 7.7l5.4-.8L12 2z" />
                 </svg>
               </span>
-              <span className="font-display text-xl font-bold text-white">Nūr</span>
+              <span className="font-display text-xl font-bold text-white">Shia Fiqh</span>
             </div>
             <p className="mt-5 max-w-xs text-sm leading-relaxed text-white/50">
-              A verified library of Shia hadith, searchable in plain language — every answer traced back to its chain of
-              narration.
+              A comparative Shia fiqh platform — browse masail, compare maraji, and ask questions grounded in the fatwa
+              corpus.
             </p>
-            <p className="mt-6 font-arabic text-2xl text-gold-300/80" dir="rtl">
-              وَقُل رَّبِّ زِدْنِي عِلْمًا
-            </p>
-            <p className="mt-1 text-xs italic text-white/35">&ldquo;My Lord, increase me in knowledge.&rdquo;</p>
           </div>
 
           {COLUMNS.map((col) => (
@@ -77,14 +72,8 @@ export function Footer() {
         </div>
 
         <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-7 sm:flex-row">
-          <p className="text-xs text-white/40">© {new Date().getFullYear()} Nūr Hadith Library. Built for seekers of knowledge.</p>
-          <p className="flex items-center gap-2 text-xs text-white/40">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-            </span>
-            Jafari calculation · Live corpus
-          </p>
+          <p className="text-xs text-white/40">© {new Date().getFullYear()} Shia Fiqh Platform.</p>
+          <p className="text-xs text-white/40">Fiqh corpus · Jafari salah · Qibla by location</p>
         </div>
       </div>
     </footer>

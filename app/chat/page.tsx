@@ -1,80 +1,69 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import React, { useEffect, useRef, useState } from 'react';
 import { ChatMessage } from '@/app/components/ChatMessage';
 import { ChatInput } from '@/app/components/ChatInput';
-import { RequireAuth } from '@/app/components/RequireAuth';
-import { useHadithViewer } from '@/app/components/useHadithViewer';
-import { useRouter } from 'next/navigation';
-import { AuthRequiredError, authFetch, loginUrl } from '@/lib/auth-client';
+import { MarjaCompareGrid } from '@/app/components/MarjaCompareGrid';
+import type { CompareSummary, RulingType } from '@/lib/fiqh/types';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  citations?: any[];
+  citations?: FiqhCitation[];
+  primaryCompare?: CompareSummary | null;
+}
+
+interface FiqhCitation {
+  id: string;
+  questionSlug: string;
+  marjaName: string;
+  questionEn?: string;
+  categorySlug?: string;
+  subcategorySlug?: string;
+  rulingType?: RulingType;
 }
 
 const SUGGESTIONS = [
-  'What does al-Kafi say about seeking knowledge?',
-  'Narrations on the rights of parents',
-  'How is Fajr defined in Jafari fiqh?',
-  'Hadiths narrated by Zurara ibn A’yan',
+  'What is the ruling on music in the home?',
+  'Khums on unused savings — when is it due?',
+  'Can I break fast for a medical test?',
+  'Compare maraji on cryptocurrency trading',
 ];
 
-/**
- * Shown while a question is being answered. Retrieval really does run in these
- * stages, so the lines track what the server is doing rather than inventing
- * activity; they simply advance on a timer because the API answers in one go.
- */
 const THINKING_STAGES = [
   'Reading your question…',
-  'Searching 77,000 narrations…',
-  'Gathering the closest matches…',
-  'Weighing which narrations actually answer this…',
-  'Checking chains and gradings…',
-  'Writing the answer with its citations…',
+  'Searching fiqh questions…',
+  'Loading marja answers…',
+  'Comparing rulings…',
+  'Drafting answer with citations…',
 ];
 
-const STAGE_MS = 2600;
+const STAGE_MS = 2200;
 
 const GREETING: Message = {
   id: '0',
   role: 'assistant',
   content:
-    'السلام عليكم\n\nAsk me anything about the Shia hadith corpus. I answer only from narrations I can find, and every claim comes with its source.',
+    'السلام عليكم\n\nAsk about Shia fiqh masail. I answer from the comparative fatwa corpus and cite marja sources — not from hadith collections.',
   citations: [],
 };
 
 export default function ChatPage() {
-  return (
-    <RequireAuth>
-      <Chat />
-    </RequireAuth>
-  );
-}
-
-function Chat() {
   const router = useRouter();
-  const { open: openHadith, viewer } = useHadithViewer();
   const [messages, setMessages] = useState<Message[]>([GREETING]);
   const [isLoading, setIsLoading] = useState(false);
   const [stage, setStage] = useState(0);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const lastUserRef = useRef<HTMLDivElement>(null);
 
-  // The thread scrolls inside its own panel. scrollIntoView would scroll the
-  // whole window too, dragging the page down past the composer to the footer.
   const scrollThread = (top: number) => scrollerRef.current?.scrollTo({ top, behavior: 'smooth' });
 
-  /**
-   * Bring the newest exchange to the top of the panel rather than jumping to
-   * the end, so a long answer starts where it can be read from its first line.
-   */
   const showLatest = () => {
     const scroller = scrollerRef.current;
     const anchor = lastUserRef.current;
-    // Nothing asked yet: stay at the greeting instead of jumping past it.
     if (!scroller || !anchor) return;
     scrollThread(anchor.offsetTop - scroller.offsetTop - 12);
   };
@@ -84,7 +73,6 @@ function Chat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, isLoading]);
 
-  // Advance the status line while waiting, holding on the last one.
   useEffect(() => {
     if (!isLoading) {
       setStage(0);
@@ -102,7 +90,7 @@ function Chat() {
     setIsLoading(true);
 
     try {
-      const response = await authFetch('/api/chat', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -111,25 +99,33 @@ function Chat() {
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to get response');
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to get response');
+      }
       const data = await response.json();
 
       setMessages((prev) => [
         ...prev,
-        { id: (Date.now() + 1).toString(), role: 'assistant', content: data.answer, citations: data.citations },
+        {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: data.answer,
+          citations: data.citations,
+          primaryCompare: data.primaryCompare ?? null,
+        },
       ]);
     } catch (error) {
-      if (error instanceof AuthRequiredError) {
-        router.push(loginUrl('/chat'));
-        return;
-      }
       console.error('Chat error:', error);
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: 'Something went wrong reaching the library. Please try again.',
+          content:
+            error instanceof Error && error.message.includes('GEMINI')
+              ? 'Set GEMINI_API_KEY in .env.local to enable AI answers.'
+              : 'Something went wrong. Check Supabase + fiqh seed, then try again.',
           citations: [],
         },
       ]);
@@ -142,23 +138,27 @@ function Chat() {
     <div className="mx-auto flex h-[calc(100vh-5rem)] max-w-5xl flex-col px-5 sm:px-8">
       <div className="flex items-center justify-between border-b border-white/10 py-5">
         <div>
-          <p className="eyebrow">Grounded answers</p>
-          <h1 className="mt-2.5 font-display text-3xl font-bold text-white">Ask the library</h1>
+          <p className="eyebrow">Fiqh assistant</p>
+          <h1 className="mt-2.5 font-display text-3xl font-bold text-white">Ask the maraji corpus</h1>
         </div>
-        <button
-          onClick={() => {
-            setMessages([GREETING]);
-            scrollThread(0); // the panel keeps its offset otherwise
-          }}
-          className="btn-ghost !px-4 !py-2 text-xs"
-        >
-          New conversation
-        </button>
+        <div className="flex gap-2">
+          <Link href="/search" className="btn-ghost !px-4 !py-2 text-xs">
+            Search
+          </Link>
+          <button
+            onClick={() => {
+              setMessages([GREETING]);
+              scrollThread(0);
+            }}
+            className="btn-ghost !px-4 !py-2 text-xs"
+          >
+            New chat
+          </button>
+        </div>
       </div>
 
       <div ref={scrollerRef} className="flex-1 overflow-y-auto py-8">
         {messages.map((message, i) => {
-          // Anchor on the last question asked, so it sits at the top of the panel.
           const isLastQuestion = message.role === 'user' && !messages.slice(i + 1).some((m) => m.role === 'user');
           return (
             <div key={message.id} ref={isLastQuestion ? lastUserRef : undefined}>
@@ -166,8 +166,21 @@ function Chat() {
                 role={message.role}
                 content={message.content}
                 citations={message.citations}
-                onCitationClick={(c: any) => openHadith(c.hadithId)}
+                onCitationClick={(c) => {
+                  if (c.questionSlug) router.push(`/masail/${c.questionSlug}`);
+                }}
               />
+              {message.role === 'assistant' &&
+                message.primaryCompare &&
+                message.primaryCompare.fatwas.length > 1 && (
+                  <div className="mb-8 max-w-4xl sm:ml-[3.25rem]">
+                    <MarjaCompareGrid
+                      data={message.primaryCompare}
+                      title="Marja answers for this topic"
+                      maxCards={8}
+                    />
+                  </div>
+                )}
             </div>
           );
         })}
@@ -177,8 +190,9 @@ function Chat() {
             {SUGGESTIONS.map((s) => (
               <button
                 key={s}
+                type="button"
                 onClick={() => handleSendMessage(s)}
-                className="rounded-full border border-white/12 bg-white/[0.03] px-4 py-2.5 text-xs text-white/60 transition hover:border-gold-300/40 hover:bg-white/[0.07] hover:text-white"
+                className="rounded-full border border-white/12 bg-white/[0.03] px-4 py-2.5 text-xs text-white/60 transition hover:border-gold-300/40 hover:text-white"
               >
                 {s}
               </button>
@@ -194,30 +208,17 @@ function Chat() {
               </svg>
             </span>
             <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4">
-              <span className="flex gap-1.5">
-                {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    className="h-1.5 w-1.5 animate-bounce rounded-full bg-gold-300"
-                    style={{ animationDelay: `${i * 140}ms` }}
-                  />
-                ))}
-              </span>
-              <span className="text-sm text-white/45 transition-opacity duration-300">{THINKING_STAGES[stage]}</span>
+              <span className="text-sm text-white/45">{THINKING_STAGES[stage]}</span>
             </div>
           </div>
         )}
 
-        {/* Room to scroll the newest exchange up to the top of the panel.
-            Only once a question exists, or the opening view starts scrollable. */}
         {hasAsked && <div className="h-[55vh]" aria-hidden />}
       </div>
 
       <div className="-mx-5 sm:-mx-8">
         <ChatInput onSubmit={handleSendMessage} isLoading={isLoading} />
       </div>
-
-      {viewer}
     </div>
   );
 }

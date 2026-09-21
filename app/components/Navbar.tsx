@@ -10,8 +10,9 @@ const LINKS = [
   { href: '/', label: 'Home' },
   { href: '/chat', label: 'Ask' },
   { href: '/search', label: 'Search' },
+  { href: '/prayer-times', label: 'Salah' },
   { href: '/qibla', label: 'Qibla' },
-  { href: '/prayer-times', label: 'Prayer Times' },
+  { href: '/principles', label: 'Usul' },
 ];
 
 export function Navbar() {
@@ -44,8 +45,8 @@ export function Navbar() {
             </svg>
           </span>
           <span className="flex flex-col leading-none">
-            <span className="font-display text-lg font-bold tracking-wide text-white">Nūr</span>
-            <span className="text-[10px] uppercase tracking-[0.22em] text-gold-300/70">Hadith Library</span>
+            <span className="font-display text-lg font-bold tracking-wide text-white">Shia Fiqh</span>
+            <span className="text-[10px] uppercase tracking-[0.22em] text-gold-300/70">Comparative corpus</span>
           </span>
         </Link>
 
@@ -90,7 +91,7 @@ export function Navbar() {
                 Sign in
               </Link>
               <Link href="/chat" className="btn-gold !px-5 !py-2.5">
-                Start asking
+                Ask fiqh
               </Link>
             </>
           )}
@@ -140,7 +141,7 @@ export function Navbar() {
                   Sign in
                 </Link>
                 <Link href="/chat" className="btn-gold flex-1 !py-2.5">
-                  Start asking
+                  Ask fiqh
                 </Link>
               </>
             )}

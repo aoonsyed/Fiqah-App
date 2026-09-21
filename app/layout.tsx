@@ -7,8 +7,9 @@ import { Aurora } from '@/app/components/Aurora';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Nūr — Shia Hadith Library',
-  description: 'Ask questions of the Shia hadith corpus and get answers traced to their chain of narration.',
+  title: 'Shia Fiqh — Comparative Marja Corpus',
+  description:
+    'Compare Shia fiqh masail, ask grounded questions, and find Qibla and Jafari prayer times for your location.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

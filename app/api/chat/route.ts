@@ -1,58 +1,54 @@
 import { errorMessage } from '@/lib/errors';
+import { fiqhChat } from '@/lib/fiqh/chat-engine';
 import { NextRequest, NextResponse } from 'next/server';
-import { chat, streamChat, type ChatOptions } from '@/lib/rag/engine';
 import { rateLimit } from '@/lib/rate-limit';
-import { unauthorized, verifyUserRequest } from '@/lib/auth-server';
 
-const DOC_TYPES = ['hadith', 'masail'] as const;
+function clientKey(request: NextRequest): string {
+  const forwarded = request.headers.get('x-forwarded-for');
+  if (forwarded) return forwarded.split(',')[0]?.trim() || 'anon';
+  return request.headers.get('x-real-ip') || 'anon';
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await verifyUserRequest(request);
-    if (!user) return unauthorized();
-
-    // Rate limit: 10 requests per minute per user
-    if (!rateLimit(`chat:${user.id}`, 10, 60)) {
+    const key = clientKey(request);
+    if (!rateLimit(`fiqh-chat:${key}`, 15, 60)) {
       return NextResponse.json(
         { error: 'Too many requests. Please try again in a minute.' },
         { status: 429 },
       );
     }
 
-    const { query, conversationId, history, stream, topK, docType, bookIds } = await request.json();
+    const { query, history } = await request.json();
 
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
       return NextResponse.json({ error: 'Query is required' }, { status: 400 });
     }
-    if (docType !== undefined && !DOC_TYPES.includes(docType)) {
-      return NextResponse.json({ error: `docType must be one of: ${DOC_TYPES.join(', ')}` }, { status: 400 });
-    }
 
-    const options: ChatOptions = {
-      // Capped so a client can't blow up the prompt size.
-      topK: Number.isInteger(topK) ? Math.min(Math.max(topK, 1), 10) : undefined,
-      filters: {
-        docType,
-        bookIds: Array.isArray(bookIds) ? bookIds.filter((id) => typeof id === 'string') : undefined,
-      },
-    };
-
-    // Streaming response
-    if (stream) {
-      return streamResponse(query, history || [], options);
-    }
-
-    // Regular response
-    const response = await chat(query, history || [], options);
+    const response = await fiqhChat(
+      query.trim(),
+      Array.isArray(history)
+        ? history.filter(
+            (m: unknown) =>
+              m &&
+              typeof m === 'object' &&
+              'role' in m &&
+              'content' in m &&
+              ((m as { role: string }).role === 'user' || (m as { role: string }).role === 'assistant'),
+          )
+        : [],
+    );
 
     return NextResponse.json({
       answer: response.answer,
       sources: response.sources,
       citations: response.citations,
-      conversationId: conversationId || crypto.randomUUID(),
+      primaryCompare: response.primaryCompare ?? null,
+      relatedQuestions: response.relatedQuestions ?? [],
+      conversationId: crypto.randomUUID(),
     });
   } catch (error) {
-    console.error('Chat error:', error);
+    console.error('Fiqh chat error:', error);
 
     return NextResponse.json(
       {
@@ -62,42 +58,4 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-}
-
-/**
- * Server-sent events: one `sources` event first (so citations render as the
- * text arrives), then `token` events, then `done`.
- */
-async function streamResponse(query: string, history: any[], options: ChatOptions) {
-  const { sources, citations, stream } = await streamChat(query, history, options);
-  const encoder = new TextEncoder();
-  const send = (event: string, data: unknown) => encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-
-  const body = new ReadableStream({
-    async start(controller) {
-      try {
-        controller.enqueue(send('sources', { sources, citations }));
-        for await (const chunk of stream) {
-          controller.enqueue(send('token', chunk));
-        }
-        controller.enqueue(send('done', {}));
-        controller.close();
-      } catch (error) {
-        controller.enqueue(send('error', { message: errorMessage(error) }));
-        controller.close();
-      }
-    },
-  });
-
-  return new NextResponse(body, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-    },
-  });
-}
-
-export async function GET() {
-  return NextResponse.json({ message: 'Chat API endpoint' });
 }
