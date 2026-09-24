@@ -36,94 +36,140 @@ export function WorshipPanel({ variant = 'full', showHeader = true }: WorshipPan
   }, [location?.lat, location?.lng]);
 
   const compact = variant === 'compact';
+  const distKm =
+    location && bearing !== null
+      ? Math.round(distanceToKaabaKm(location.lat, location.lng)).toLocaleString()
+      : null;
 
   return (
-    <section
-      className={`card relative overflow-hidden border-emerald-500/20 ${
-        compact ? 'p-5 sm:p-6' : 'p-6 sm:p-10'
-      }`}
-    >
-      <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-emerald-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-gold-400/10 blur-3xl" />
-
-      {showHeader && (
-        <div className="relative flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="eyebrow !py-1 !text-[10px]">Worship tools</p>
-            <h2 className="mt-3 font-display text-2xl font-bold text-white sm:text-3xl">
-              Qibla & prayer times
-            </h2>
-            <p className="mt-2 max-w-md text-sm text-white/50">
-              Location from your IP by default — switch to GPS or pick a city anytime.
-            </p>
-          </div>
-          {!compact && (
-            <div className="flex gap-2">
-              <Link href="/qibla" className="btn-ghost !px-4 !py-2 !text-xs">
-                Full compass
-              </Link>
-              <Link href="/prayer-times" className="btn-gold !px-4 !py-2 !text-xs">
-                All salah times
-              </Link>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className={`relative ${showHeader ? 'mt-8' : 'mt-0'}`}>
-        <LocationPicker
-          location={location}
-          status={status}
-          placeName={placeName}
-          mode={mode}
-          onChoose={chooseLocation}
-          onUseDevice={useDeviceLocation}
-          onUseIp={useIpLocation}
-        />
-      </div>
-
+    <section className="relative overflow-hidden rounded-[2rem] border border-white/[0.08] bg-gradient-to-br from-emerald-950/40 via-night-900/80 to-night-950">
+      {/* Atmosphere — no nested card chrome */}
       <div
-        className={`relative mt-8 grid gap-8 ${compact ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]' : 'lg:grid-cols-2'}`}
-      >
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-          <QiblaCompass bearing={bearing} size={compact ? 200 : 280} />
-          {location && bearing !== null && (
-            <dl className="mt-6 grid w-full max-w-xs grid-cols-2 gap-3 text-center text-xs">
-              <div className="rounded-lg bg-white/[0.04] px-3 py-2">
-                <dt className="text-white/40">Direction</dt>
-                <dd className="font-semibold text-gold-200">{compassDirection(bearing)}</dd>
-              </div>
-              <div className="rounded-lg bg-white/[0.04] px-3 py-2">
-                <dt className="text-white/40">To Kaaba</dt>
-                <dd className="font-semibold text-white tabular-nums">
-                  {Math.round(distanceToKaabaKm(location.lat, location.lng)).toLocaleString()} km
-                </dd>
-              </div>
-            </dl>
-          )}
-          {compact && (
-            <Link href="/qibla" className="mt-4 text-xs font-semibold text-gold-200 hover:underline">
-              Open full compass →
-            </Link>
-          )}
-        </div>
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-40"
+        style={{
+          backgroundImage:
+            'radial-gradient(ellipse 80% 50% at 20% 40%, rgba(16,185,129,0.18), transparent), radial-gradient(ellipse 60% 40% at 85% 20%, rgba(239,205,107,0.12), transparent)',
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.07]"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)',
+          backgroundSize: '48px 48px',
+          maskImage: 'radial-gradient(ellipse at center, black 20%, transparent 75%)',
+        }}
+      />
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-6">
-          {timesError && (
-            <p className="text-center text-sm text-rose-200/90">Could not load prayer times. Try again shortly.</p>
-          )}
-          {!location && status === 'locating' && (
-            <div className="h-48 animate-pulse rounded-xl bg-white/[0.04]" />
-          )}
-          {location && !timesError && <PrayerTimeline times={times} />}
-          {compact && (
-            <Link
-              href="/prayer-times"
-              className="mt-4 block text-center text-xs font-semibold text-gold-200 hover:underline"
-            >
-              Full day timeline →
-            </Link>
-          )}
+      <div className={`relative ${compact ? 'p-5 sm:p-7' : 'p-6 sm:p-10'}`}>
+        {showHeader && (
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-300/70">
+                Facing Makkah
+              </p>
+              <h2 className="mt-2 font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                Direction &amp; salah
+              </h2>
+            </div>
+            <LocationPicker
+              location={location}
+              status={status}
+              placeName={placeName}
+              mode={mode}
+              onChoose={chooseLocation}
+              onUseDevice={useDeviceLocation}
+              onUseIp={useIpLocation}
+              variant="chip"
+            />
+          </div>
+        )}
+
+        {!showHeader && (
+          <div className="mb-6 flex justify-end">
+            <LocationPicker
+              location={location}
+              status={status}
+              placeName={placeName}
+              mode={mode}
+              onChoose={chooseLocation}
+              onUseDevice={useDeviceLocation}
+              onUseIp={useIpLocation}
+              variant="chip"
+            />
+          </div>
+        )}
+
+        <div
+          className={`grid items-center gap-8 lg:gap-12 ${
+            compact ? 'lg:grid-cols-[0.95fr_1.15fr]' : 'lg:grid-cols-2'
+          }`}
+        >
+          {/* Compass stage */}
+          <div className="relative flex flex-col items-center">
+            <div className="relative">
+              <div
+                aria-hidden
+                className="absolute inset-0 -m-8 rounded-full bg-emerald-500/10 blur-3xl"
+              />
+              <QiblaCompass bearing={bearing} size={compact ? 220 : 280} />
+            </div>
+
+            {location && bearing !== null && (
+              <div className="mt-6 flex items-center gap-6 text-center">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-white/35">Bearing</p>
+                  <p className="mt-1 font-display text-xl font-bold text-gold-200">
+                    {Math.round(bearing)}°
+                    <span className="ml-1.5 text-sm font-normal text-white/50">
+                      {compassDirection(bearing)}
+                    </span>
+                  </p>
+                </div>
+                <span className="h-8 w-px bg-white/10" aria-hidden />
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-white/35">To Kaaba</p>
+                  <p className="mt-1 font-display text-xl font-bold text-white tabular-nums">
+                    {distKm} <span className="text-sm font-normal text-white/45">km</span>
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {compact && (
+              <Link
+                href="/qibla"
+                className="mt-5 text-xs font-semibold text-gold-200/90 transition hover:text-gold-100"
+              >
+                Full compass →
+              </Link>
+            )}
+          </div>
+
+          {/* Prayer column */}
+          <div>
+            {timesError && (
+              <p className="rounded-2xl bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                Could not load prayer times.
+              </p>
+            )}
+            {!location && status === 'locating' && (
+              <div className="h-64 animate-pulse rounded-3xl bg-white/[0.04]" />
+            )}
+            {location && !timesError && (
+              <PrayerTimeline times={times} variant="embedded" />
+            )}
+            {compact && location && !timesError && (
+              <Link
+                href="/prayer-times"
+                className="mt-4 inline-block text-xs font-semibold text-gold-200/90 transition hover:text-gold-100"
+              >
+                Full day view →
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     </section>

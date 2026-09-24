@@ -8,11 +8,10 @@ import { ThemeToggle } from '@/app/components/ThemeProvider';
 
 const LINKS = [
   { href: '/', label: 'Home' },
-  { href: '/chat', label: 'Ask' },
   { href: '/search', label: 'Search' },
+  { href: '/chat', label: 'Ask' },
   { href: '/prayer-times', label: 'Salah' },
   { href: '/qibla', label: 'Qibla' },
-  { href: '/principles', label: 'Usul' },
 ];
 
 export function Navbar() {
@@ -45,8 +44,8 @@ export function Navbar() {
             </svg>
           </span>
           <span className="flex flex-col leading-none">
-            <span className="font-display text-lg font-bold tracking-wide text-white">Shia Fiqh</span>
-            <span className="text-[10px] uppercase tracking-[0.22em] text-gold-300/70">Comparative corpus</span>
+            <span className="font-display text-lg font-bold tracking-wide text-white">Fiqah</span>
+            <span className="text-[10px] uppercase tracking-[0.22em] text-gold-300/70">Shia fiqh</span>
           </span>
         </Link>
 
@@ -86,14 +85,9 @@ export function Navbar() {
               </button>
             </>
           ) : (
-            <>
-              <Link href="/login" className="text-sm font-medium text-white/70 transition hover:text-white">
-                Sign in
-              </Link>
-              <Link href="/chat" className="btn-gold !px-5 !py-2.5">
-                Ask fiqh
-              </Link>
-            </>
+            <Link href="/chat" className="btn-gold !px-5 !py-2.5">
+              Ask fiqh
+            </Link>
           )}
         </div>
 
@@ -136,14 +130,9 @@ export function Navbar() {
                 Sign out
               </button>
             ) : (
-              <>
-                <Link href="/login" className="btn-ghost flex-1 !py-2.5">
-                  Sign in
-                </Link>
-                <Link href="/chat" className="btn-gold flex-1 !py-2.5">
-                  Ask fiqh
-                </Link>
-              </>
+              <Link href="/chat" className="btn-gold flex-1 !py-2.5">
+                Ask fiqh
+              </Link>
             )}
           </div>
         </div>

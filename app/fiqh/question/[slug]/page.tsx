@@ -2,10 +2,37 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Reveal } from '@/app/components/Reveal';
-import { RulingBadge } from '@/app/components/RulingBadge';
-import type { Fatwa, FiqhQuestion } from '@/lib/fiqh/types';
+import { FatwaAnswerBody } from '@/app/components/FatwaAnswerBody';
+import { MarjaCompareGrid } from '@/app/components/MarjaCompareGrid';
+import {
+  formatFatwaDisplay,
+  pickPrimaryOfficialFatwa,
+  type FatwaCorpusKind,
+} from '@/lib/fiqh/format-fatwa-display';
+import type { CompareSummary, Fatwa, FiqhQuestion } from '@/lib/fiqh/types';
+
+function corpusKind(refs: unknown[]): FatwaCorpusKind {
+  const t = (refs[0] as { type?: string } | undefined)?.type;
+  if (t === 'comparative_seed') return 'comparative_seed';
+  if (t === 'generated_corpus') return 'generated_corpus';
+  return 'imported';
+}
+
+function sortFatwas(fatwas: Fatwa[]): Fatwa[] {
+  const rank = (f: Fatwa) => {
+    const k = corpusKind(f.evidenceRefs ?? []);
+    if (k === 'imported') {
+      if (f.marja?.slug === 'khamenei') return 0;
+      if (f.marja?.slug === 'sistani') return 1;
+      return 2;
+    }
+    if (k === 'comparative_seed') return 3;
+    return 4;
+  };
+  return [...fatwas].sort((a, b) => rank(a) - rank(b));
+}
 
 export default function FiqhQuestionPage() {
   const params = useParams();
@@ -27,11 +54,34 @@ export default function FiqhQuestionPage() {
       .then((data) => {
         if (data) {
           setQuestion(data.question);
-          setFatwas(data.fatwas ?? []);
+          setFatwas(sortFatwas(data.fatwas ?? []));
         }
       })
       .finally(() => setLoading(false));
   }, [slug]);
+
+  const primary = useMemo(() => pickPrimaryOfficialFatwa(fatwas), [fatwas]);
+  const primaryDisplay = primary && question ? formatFatwaDisplay(primary, question.questionEn) : null;
+
+  const compareData: CompareSummary | null = useMemo(() => {
+    if (!question || fatwas.length === 0) return null;
+    const rulingCounts = {} as Record<string, number>;
+    for (const f of fatwas) {
+      const rt = formatFatwaDisplay(f, question?.questionEn).displayRuling;
+      rulingCounts[rt] = (rulingCounts[rt] ?? 0) + 1;
+    }
+    const entries = Object.entries(rulingCounts).sort((a, b) => b[1] - a[1]);
+    const dominant = entries[0]?.[0] as CompareSummary['agreement']['dominantRuling'];
+    return {
+      question,
+      fatwas,
+      agreement: {
+        rulingCounts: rulingCounts as CompareSummary['agreement']['rulingCounts'],
+        dominantRuling: dominant ?? null,
+        unanimous: entries.length <= 1,
+      },
+    };
+  }, [question, fatwas]);
 
   if (notFound) {
     return (
@@ -62,39 +112,33 @@ export default function FiqhQuestionPage() {
                 {question.questionAr}
               </p>
             )}
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link href={`/compare/${question.slug}`} className="btn-gold !py-2 !text-sm">
-                Compare all maraji
-              </Link>
-            </div>
           </Reveal>
 
-          <section className="mt-12 space-y-4">
-            {fatwas.map((f, i) => (
-              <Reveal key={f.id} delay={i * 40}>
-                <article className="card p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <h2 className="font-semibold text-white">{f.marja?.nameEn ?? 'Marja'}</h2>
-                    <RulingBadge type={f.rulingType} />
-                  </div>
-                  <p className="mt-4 text-sm leading-relaxed text-white/65">{f.answerEn}</p>
-                  {f.conditionsEn && (
-                    <p className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-xs text-white/50">
-                      Conditions: {f.conditionsEn}
-                    </p>
-                  )}
-                </article>
-              </Reveal>
-            ))}
-          </section>
+          {primaryDisplay && primary && (
+            <Reveal delay={40}>
+              <section className="card mt-10 border-gold-300/25 p-6 sm:p-8">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold-300/90">
+                  Official ruling (corpus)
+                </p>
+                <p className="mt-2 text-sm text-white/50">
+                  {primary.marja?.nameEn} — verified import. Other maraji below are expanded or aligned until their texts
+                  are imported.
+                </p>
+                <div className="mt-5">
+                  <FatwaAnswerBody fatwa={primary} questionEn={question.questionEn} showMarjaHeader />
+                </div>
+              </section>
+            </Reveal>
+          )}
 
-          {fatwas.some((f) => {
-            const ref = f.evidenceRefs?.[0] as { type?: string } | undefined;
-            return ref?.type === 'generated_corpus' || ref?.type === 'comparative_seed';
-          }) && (
-            <p className="mt-10 text-xs text-white/35">
-              Some marja entries are comparative seeds — verify on each marja&apos;s official risalah or site.
-            </p>
+          {compareData && (
+            <Reveal delay={60}>
+              <p className="mt-10 text-sm text-white/45">
+                Open any card for the full ruling text. Green highlight = hukm to follow; seeded maraji show aligned
+                corpus text until their official answers are imported.
+              </p>
+              <MarjaCompareGrid data={compareData} title="Compare all maraji" hideQuestionTitle />
+            </Reveal>
           )}
         </>
       ) : null}

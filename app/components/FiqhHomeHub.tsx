@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CountUp, Reveal } from '@/app/components/Reveal';
 import { HorizontalCarousel } from '@/app/components/HorizontalCarousel';
 import { WorshipPanel } from '@/app/components/WorshipPanel';
@@ -28,7 +28,6 @@ const TOPIC_ICON: Record<string, string> = {
   governance: '⚖️',
   economy: '📊',
   judiciary: '🏛️',
-  usul: '📜',
 };
 
 function marjaInitials(name: string): string {
@@ -67,78 +66,79 @@ export function FiqhHomeHub() {
       .finally(() => setReady(true));
   }, []);
 
+  const visibleCategories = useMemo(
+    () => categories.filter((c) => c.slug !== 'usul'),
+    [categories],
+  );
+
   const dbReady = stats?.ready && (stats.stats?.questions ?? 0) > 0;
   const marjaCount = stats?.stats?.maraji ?? maraji.length;
 
   return (
     <main>
-      <section className="relative mx-auto max-w-7xl overflow-hidden px-5 pb-10 pt-12 sm:px-8 sm:pt-20">
+      <section className="relative mx-auto max-w-7xl overflow-hidden px-5 pb-8 pt-12 sm:px-8 sm:pt-20">
         <div
           aria-hidden
-          className="pointer-events-none absolute -right-8 top-24 h-64 w-64 animate-float rounded-full border border-gold-300/20 bg-gradient-to-br from-emerald-500/20 to-transparent opacity-60"
+          className="pointer-events-none absolute -right-8 top-24 h-72 w-72 animate-float rounded-full bg-gradient-to-br from-emerald-500/25 to-transparent opacity-50 blur-2xl"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute left-0 top-40 h-40 w-40 animate-float rounded-full bg-gold-400/10 blur-2xl"
+          className="pointer-events-none absolute left-4 top-48 h-48 w-48 animate-float rounded-full bg-gold-400/15 blur-3xl"
           style={{ animationDelay: '-3s' }}
         />
 
         <Reveal className="max-w-3xl">
-          <p className="eyebrow">Shia fiqh · Comparative corpus</p>
-          <h1 className="mt-7 font-display text-5xl font-bold leading-[1.05] tracking-tight text-white sm:text-6xl">
-            Pure fiqh.
-            <br />
-            <span className="text-gradient-gold">{marjaCount} maraji, one question.</span>
-          </h1>
-          <p className="mt-7 max-w-xl text-lg leading-relaxed text-white/55">
-            Browse masail, compare rulings, and ask in plain language — plus Qibla and Jafari prayer times for your
-            location.
+          <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-gold-300/80">
+            Comparative Shia fiqh
           </p>
-          <div className="mt-10 flex flex-wrap gap-4">
+          <h1 className="mt-6 font-display text-5xl font-bold leading-[1.05] tracking-tight text-white sm:text-6xl lg:text-7xl">
+            Fiqah
+          </h1>
+          <p className="mt-4 font-display text-2xl font-semibold text-white/70 sm:text-3xl">
+            <span className="text-gradient-gold">{marjaCount} maraji</span>
+            <span className="text-white/40"> · </span>
+            one question
+          </p>
+          <p className="mt-6 max-w-xl text-base leading-relaxed text-white/50 sm:text-lg">
+            Search masail, compare rulings side by side, and ask in plain language — with Qibla and Jafari
+            prayer times for where you are.
+          </p>
+          <div className="mt-9 flex flex-wrap gap-3">
             <Link href="/chat" className="btn-gold">
-              Ask a fiqh question
+              Ask a question
             </Link>
             <Link href="/search" className="btn-ghost">
               Search masail
-            </Link>
-            <Link href="/qibla" className="btn-ghost">
-              Qibla
             </Link>
           </div>
         </Reveal>
 
         {!ready ? (
-          <div className="card mt-14 h-36 animate-pulse" />
+          <div className="mt-12 h-20 animate-pulse rounded-2xl bg-white/[0.04]" />
         ) : !dbReady ? (
           <Reveal delay={80}>
-            <div className="card mt-14 border-dashed border-gold-300/25 p-8">
-              <h2 className="font-display text-xl font-bold text-white">Connect & seed your corpus</h2>
-              <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm text-white/55">
-                <li>Run fiqh migrations in Supabase.</li>
-                <li>Confirm keys in `.env.local`.</li>
-                <li>
-                  <code className="rounded bg-white/10 px-1.5 py-0.5 text-gold-100">npm run fiqh:seed-mass</code>
-                </li>
-              </ol>
+            <div className="mt-12 rounded-2xl border border-dashed border-gold-300/25 bg-white/[0.02] p-6">
+              <h2 className="font-display text-lg font-bold text-white">Connect & seed your corpus</h2>
+              <p className="mt-2 text-sm text-white/50">
+                Run fiqh migrations, set Supabase keys, then{' '}
+                <code className="rounded bg-white/10 px-1.5 py-0.5 text-gold-100">npm run fiqh:seed-mass</code>
+              </p>
             </div>
           </Reveal>
         ) : (
           <Reveal delay={80}>
-            <dl className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <dl className="mt-12 flex flex-wrap gap-x-10 gap-y-4 border-y border-white/8 py-6">
               {[
                 { v: stats!.stats!.questions, l: 'Questions' },
                 { v: stats!.stats!.fatwas, l: 'Fatwas' },
                 { v: stats!.stats!.maraji, l: 'Maraji' },
                 { v: stats!.stats!.subcategories, l: 'Topics' },
               ].map((s) => (
-                <div
-                  key={s.l}
-                  className="card p-6 transition duration-500 hover:scale-[1.02] hover:border-emerald-400/30"
-                >
-                  <dd className="font-display text-3xl font-bold text-white tabular-nums">
+                <div key={s.l}>
+                  <dd className="font-display text-2xl font-bold text-white tabular-nums sm:text-3xl">
                     <CountUp value={s.v} />
                   </dd>
-                  <dt className="mt-1 text-xs uppercase tracking-wider text-white/40">{s.l}</dt>
+                  <dt className="mt-0.5 text-[10px] uppercase tracking-[0.16em] text-white/35">{s.l}</dt>
                 </div>
               ))}
             </dl>
@@ -147,7 +147,7 @@ export function FiqhHomeHub() {
 
         <Reveal delay={100}>
           <form
-            className="mx-auto mt-14 max-w-2xl"
+            className="mt-10 max-w-xl"
             onSubmit={(e) => {
               e.preventDefault();
               if (query.trim()) {
@@ -155,14 +155,14 @@ export function FiqhHomeHub() {
               }
             }}
           >
-            <div className="flex gap-2 rounded-2xl border border-white/12 bg-white/[0.04] p-2 shadow-lg shadow-emerald-950/30 ring-1 ring-gold-300/10 transition focus-within:ring-gold-300/35">
+            <div className="flex gap-2 rounded-full border border-white/12 bg-white/[0.04] p-1.5 ring-1 ring-transparent transition focus-within:border-gold-300/30 focus-within:ring-gold-300/20">
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search fiqh questions…"
-                className="min-w-0 flex-1 bg-transparent px-4 py-2 text-sm text-white placeholder:text-white/35 focus:outline-none"
+                placeholder="Search fiqh — e.g. khums, fasting travel…"
+                className="min-w-0 flex-1 bg-transparent px-4 py-2.5 text-sm text-white placeholder:text-white/35 focus:outline-none"
               />
-              <button type="submit" className="btn-gold !px-5 !py-2">
+              <button type="submit" className="btn-gold !rounded-full !px-5 !py-2">
                 Search
               </button>
             </div>
@@ -171,35 +171,33 @@ export function FiqhHomeHub() {
       </section>
 
       <section className="mx-auto max-w-7xl px-5 pb-16 sm:px-8">
-        <Reveal delay={60}>
+        <Reveal delay={40}>
           <WorshipPanel variant="compact" />
         </Reveal>
       </section>
 
-      <section className="mx-auto max-w-7xl px-5 pb-20 sm:px-8">
+      <section className="mx-auto max-w-7xl px-5 pb-16 sm:px-8">
         <Reveal>
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <h2 className="font-display text-2xl font-bold text-white sm:text-3xl">Jurisprudential domains</h2>
-            <p className="text-xs uppercase tracking-widest text-white/35">Swipe or auto-scroll</p>
+            <h2 className="font-display text-2xl font-bold text-white sm:text-3xl">Topics</h2>
+            <p className="text-xs text-white/35">Swipe to browse</p>
           </div>
         </Reveal>
-        <div className="mt-8">
+        <div className="mt-7">
           <HorizontalCarousel autoMs={4500}>
-            {categories.map((c, i) => (
+            {visibleCategories.map((c) => (
               <Link
                 key={c.slug}
                 href={`/topics/${c.slug}`}
-                className="card group block h-full p-6 transition hover:-translate-y-1"
-                style={{ animationDelay: `${i * 60}ms` }}
+                className="group block h-full rounded-2xl border border-white/8 bg-white/[0.03] p-6 transition hover:border-gold-300/30 hover:bg-white/[0.05]"
               >
-                <span className="text-3xl transition group-hover:scale-110">{TOPIC_ICON[c.slug] ?? '📖'}</span>
+                <span className="text-2xl transition group-hover:scale-110">{TOPIC_ICON[c.slug] ?? '📖'}</span>
                 <h3 className="mt-4 font-display text-xl font-bold text-white">{c.nameEn}</h3>
                 {c.descriptionEn && (
-                  <p className="mt-2 line-clamp-3 text-sm text-white/45">{c.descriptionEn}</p>
+                  <p className="mt-2 line-clamp-2 text-sm text-white/40">{c.descriptionEn}</p>
                 )}
-                <span className="mt-5 inline-flex items-center gap-1 text-xs font-semibold text-gold-200">
-                  Explore
-                  <span className="transition group-hover:translate-x-1">→</span>
+                <span className="mt-4 inline-flex text-xs font-semibold text-gold-200">
+                  Explore <span className="ml-1 transition group-hover:translate-x-1">→</span>
                 </span>
               </Link>
             ))}
@@ -210,29 +208,32 @@ export function FiqhHomeHub() {
       <section className="mx-auto max-w-7xl px-5 pb-24 sm:px-8">
         <Reveal>
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <h2 className="font-display text-2xl font-bold text-white sm:text-3xl">Maraji in this corpus</h2>
-            <Link href="/search?compareTop=1" className="text-sm text-gold-200 hover:underline">
-              Compare masail →
+            <h2 className="font-display text-2xl font-bold text-white sm:text-3xl">Maraji</h2>
+            <Link href="/search" className="text-sm text-gold-200 hover:underline">
+              Search rulings →
             </Link>
           </div>
         </Reveal>
-        <div className="mt-8">
-          <HorizontalCarousel autoMs={5500} itemClassName="min-w-[78%] sm:min-w-[calc(45%-0.5rem)] lg:min-w-[calc(30%-0.67rem)] snap-start">
+        <div className="mt-7">
+          <HorizontalCarousel
+            autoMs={5500}
+            itemClassName="min-w-[78%] sm:min-w-[calc(45%-0.5rem)] lg:min-w-[calc(30%-0.67rem)] snap-start"
+          >
             {maraji.map((m) => (
               <article
                 key={m.slug}
-                className="card flex h-full flex-col p-5 transition hover:border-gold-300/35"
+                className="flex h-full flex-col rounded-2xl border border-white/8 bg-white/[0.03] p-5 transition hover:border-gold-300/30"
               >
                 <div className="flex items-start gap-4">
-                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-950 text-sm font-bold text-gold-100 ring-1 ring-white/10">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-950 text-sm font-bold text-gold-100 ring-1 ring-white/10">
                     {marjaInitials(m.nameEn)}
                   </span>
                   <div className="min-w-0">
                     <p className="font-semibold leading-snug text-white">{m.nameEn}</p>
-                    <p className="mt-1 text-xs capitalize text-emerald-300/80">{m.era}</p>
+                    <p className="mt-1 text-xs capitalize text-emerald-300/70">{m.era}</p>
                   </div>
                 </div>
-                {m.bioEn && <p className="mt-3 line-clamp-3 flex-1 text-sm text-white/45">{m.bioEn}</p>}
+                {m.bioEn && <p className="mt-3 line-clamp-3 flex-1 text-sm text-white/40">{m.bioEn}</p>}
                 <Link
                   href={`/search?q=${encodeURIComponent(m.nameEn.split(' ').slice(-1)[0] ?? m.slug)}`}
                   className="mt-4 text-xs font-semibold text-gold-200 hover:underline"
@@ -249,7 +250,7 @@ export function FiqhHomeHub() {
 }
 
 function fallbackCategories(): FiqhCategory[] {
-  return CATEGORIES.map((c) => ({
+  return CATEGORIES.filter((c) => c.slug !== 'usul').map((c) => ({
     id: c.slug,
     slug: c.slug,
     nameEn: c.nameEn,

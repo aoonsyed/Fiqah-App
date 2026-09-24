@@ -34,7 +34,7 @@ export default function FiqhComparePage() {
     );
   }
 
-  const { question, fatwas, agreement } = data;
+  const { question, agreement } = data;
 
   return (
     <main className="mx-auto max-w-5xl px-5 py-16 sm:px-8">
@@ -68,30 +68,7 @@ export default function FiqhComparePage() {
         </div>
       </Reveal>
 
-      <MarjaCompareGrid data={data} title="Marja cards" hideQuestionTitle maxCards={11} />
-
-      <div className="mt-10 overflow-x-auto rounded-2xl border border-white/10">
-        <table className="min-w-full text-left text-sm">
-          <thead className="bg-white/[0.04] text-xs uppercase tracking-wide text-white/45">
-            <tr>
-              <th className="px-4 py-3">Marja</th>
-              <th className="px-4 py-3">Ruling</th>
-              <th className="px-4 py-3">Summary</th>
-            </tr>
-          </thead>
-          <tbody>
-            {fatwas.map((f) => (
-              <tr key={f.id} className="border-t border-white/10">
-                <td className="px-4 py-4 font-medium text-white">{f.marja?.nameEn}</td>
-                <td className="px-4 py-4">
-                  <RulingBadge type={f.rulingType} />
-                </td>
-                <td className="max-w-md px-4 py-4 text-white/55">{f.answerEn.slice(0, 160)}…</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <MarjaCompareGrid data={data} title="Interactive marja compare" hideQuestionTitle />
     </main>
   );
 }
