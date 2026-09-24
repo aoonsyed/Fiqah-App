@@ -170,7 +170,7 @@ export function FiqhHomeHub() {
         </Reveal>
       </section>
 
-      <section className="mx-auto max-w-7xl px-5 pb-16 sm:px-8">
+      <section className="mx-auto max-w-7xl px-5 pb-10 sm:px-8">
         <Reveal delay={40}>
           <WorshipPanel variant="compact" />
         </Reveal>

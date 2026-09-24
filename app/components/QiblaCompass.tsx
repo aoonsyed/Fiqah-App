@@ -71,23 +71,35 @@ function useDeviceHeading() {
   return heading;
 }
 
-export function QiblaCompass({ bearing, size = 260 }: { bearing: number | null; size?: number }) {
+export function QiblaCompass({
+  bearing,
+  size = 260,
+  compact = false,
+}: {
+  bearing: number | null;
+  size?: number;
+  /** Hide large readout and pulse rings — for tight layouts */
+  compact?: boolean;
+}) {
   const heading = useDeviceHeading();
   const ready = bearing !== null;
   const angle = bearing ?? 0;
 
-  // Rotate the whole dial against the device heading so N tracks true north.
   const dialRotation = heading === null ? 0 : -heading;
   const live = heading !== null;
 
   return (
-    <div className="flex flex-col items-center gap-5">
+    <div className={`flex flex-col items-center ${compact ? 'gap-0' : 'gap-4'}`}>
       <div className="relative grid place-items-center" style={{ width: size, height: size }}>
-        <span className="absolute h-full w-full rounded-full border border-emerald-400/25 animate-pulse-ring" />
-        <span
-          className="absolute h-full w-full rounded-full border border-gold-300/20 animate-pulse-ring"
-          style={{ animationDelay: '1.2s' }}
-        />
+        {!compact && (
+          <>
+            <span className="absolute h-full w-full rounded-full border border-emerald-400/25 animate-pulse-ring" />
+            <span
+              className="absolute h-full w-full rounded-full border border-gold-300/20 animate-pulse-ring"
+              style={{ animationDelay: '1.2s' }}
+            />
+          </>
+        )}
 
         <svg viewBox="0 0 200 200" className="relative h-full w-full">
           <defs>
@@ -105,7 +117,6 @@ export function QiblaCompass({ bearing, size = 260 }: { bearing: number | null; 
           <circle cx="100" cy="100" r="95" fill="url(#dial)" stroke="rgb(var(--c-fg) / .16)" />
           <circle cx="100" cy="100" r="88" fill="none" stroke="rgb(var(--c-gold-300) / .18)" strokeDasharray="2 6" />
 
-          {/* Everything below sits in the earth frame and counter-rotates with the device */}
           <g
             style={{
               transform: `rotate(${dialRotation}deg)`,
@@ -145,7 +156,6 @@ export function QiblaCompass({ bearing, size = 260 }: { bearing: number | null; 
               );
             })}
 
-            {/* Qibla needle */}
             <g
               style={{
                 transform: `rotate(${angle}deg)`,
@@ -168,12 +178,21 @@ export function QiblaCompass({ bearing, size = 260 }: { bearing: number | null; 
         </svg>
       </div>
 
-      {/* Readout lives outside the dial so nothing overlaps the ticks */}
-      <p className="font-display text-4xl font-bold leading-none text-gradient-gold tabular-nums">
-        {ready ? `${angle.toFixed(1)}°` : '—'}
-      </p>
-
-      {ready && live && <AlignmentHint bearing={angle} heading={heading} />}
+      {!compact && (
+        <>
+          <p className="font-display text-4xl font-bold leading-none text-gradient-gold tabular-nums">
+            {ready ? `${angle.toFixed(1)}°` : '—'}
+          </p>
+          {ready && live && <AlignmentHint bearing={angle} heading={heading} />}
+        </>
+      )}
+      {compact && ready && live && (
+        <p className="mt-1 text-[10px] text-white/45">
+          {Math.abs((((angle - heading + 540) % 360) - 180)) <= 5
+            ? 'Facing Qibla'
+            : 'Tap for live heading'}
+        </p>
+      )}
     </div>
   );
 }

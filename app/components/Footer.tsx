@@ -7,7 +7,6 @@ const COLUMNS = [
       { href: '/chat', label: 'Ask fiqh' },
       { href: '/search', label: 'Search masail' },
       { href: '/prayer-times', label: 'Prayer times' },
-      { href: '/qibla', label: 'Qibla compass' },
     ],
   },
   {

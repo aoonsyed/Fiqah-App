@@ -7,11 +7,9 @@ import { useAuth } from '@/app/components/AuthProvider';
 import { ThemeToggle } from '@/app/components/ThemeProvider';
 
 const LINKS = [
-  { href: '/', label: 'Home' },
   { href: '/search', label: 'Search' },
   { href: '/chat', label: 'Ask' },
   { href: '/prayer-times', label: 'Salah' },
-  { href: '/qibla', label: 'Qibla' },
 ];
 
 export function Navbar() {

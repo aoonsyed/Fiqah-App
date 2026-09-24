@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
 export interface PrayerTimes {
@@ -29,7 +30,7 @@ const ORDER: { key: keyof PrayerTimes; label: string; arabic: string }[] = [
   { key: 'isha', label: 'Isha', arabic: 'العشاء' },
 ];
 
-const FRIDAY = 5;
+const PRAYER_KEYS = new Set(['fajr', 'dhuhr', 'asr', 'maghrib', 'isha']);
 
 function toMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number);
@@ -50,7 +51,7 @@ export function PrayerTimeline({
   variant = 'full',
 }: {
   times: PrayerTimes | null;
-  variant?: 'full' | 'embedded';
+  variant?: 'full' | 'embedded' | 'strip';
 }) {
   const [now, setNow] = useState(() => new Date());
 
@@ -65,147 +66,112 @@ export function PrayerTimeline({
     [times],
   );
 
+  const prayerSlots = useMemo(() => slots.filter((s) => PRAYER_KEYS.has(s.key)), [slots]);
+
   const zone = times?.timezone ?? null;
   const localNow = useMemo(() => inTimeZone(now, zone), [now, zone]);
   const nowMins = localNow.getHours() * 60 + localNow.getMinutes();
-  const isFriday = localNow.getDay() === FRIDAY;
+  const isFriday = localNow.getDay() === 5;
 
-  const upcoming = slots.find((s) => toMinutes(s.time) > nowMins) ?? slots[0];
-  const currentIdx = slots.findIndex((s) => s === upcoming) - 1;
+  const upcoming = prayerSlots.find((s) => toMinutes(s.time) > nowMins) ?? prayerSlots[0];
+  const currentIdx = prayerSlots.findIndex((s) => s === upcoming) - 1;
   const minsLeft = upcoming ? (toMinutes(upcoming.time) - nowMins + 1440) % 1440 : 0;
   const hoursLeft = Math.floor(minsLeft / 60);
   const minsOnly = minsLeft % 60;
-  const dayProgress = (nowMins / 1440) * 100;
-
-  const clock = localNow.toLocaleTimeString('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  });
-  const today = localNow.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
-  const deviceZone = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : null;
-  const elsewhere = Boolean(zone && deviceZone && zone !== deviceZone);
 
   if (!times) {
-    return (
-      <div className="grid h-56 place-items-center">
-        <div className="text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-gold-300" />
-          <p className="mt-3 text-sm text-white/40">Loading prayer times…</p>
-        </div>
-      </div>
-    );
+    return <p className="text-xs text-white/40">Loading…</p>;
   }
 
-  return (
-    <div className={variant === 'embedded' ? '' : ''}>
-      {/* Next prayer hero */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-900/60 via-night-800/40 to-transparent p-6 ring-1 ring-white/10">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-gold-400/15 blur-2xl"
-        />
-        <div className="relative flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold-300/80">
-              Next · Jafari
-            </p>
-            <p className="mt-2 font-display text-4xl font-bold tracking-tight text-white sm:text-5xl">
-              {upcoming?.label ?? '—'}
-            </p>
-            <p className="mt-1 font-arabic text-lg text-white/40" dir="rtl">
-              {upcoming?.arabic}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="font-display text-3xl font-bold tabular-nums text-gold-200 sm:text-4xl">
+  /* Compact horizontal strip for home */
+  if (variant === 'strip') {
+    return (
+      <div>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="text-sm text-white/70">
+            Next{' '}
+            <span className="font-semibold text-emerald-800">{upcoming?.label}</span>
+            <span className="ml-1.5 font-display text-base font-bold tabular-nums text-white">
               {upcoming?.time}
-            </p>
-            <p className="mt-2 text-sm text-white/55">
-              in{' '}
-              <span className="font-semibold tabular-nums text-white">
-                {String(hoursLeft).padStart(2, '0')}h {String(minsOnly).padStart(2, '0')}m
-              </span>
-            </p>
-          </div>
+            </span>
+          </p>
+          <p className="text-xs tabular-nums text-white/40">
+            in {String(hoursLeft).padStart(2, '0')}h {String(minsOnly).padStart(2, '0')}m
+          </p>
         </div>
-
-        <div className="relative mt-6 h-1 rounded-full bg-white/10">
-          <div
-            className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emerald-400 to-gold-300 transition-all duration-1000"
-            style={{ width: `${dayProgress}%` }}
-          />
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-white/40">
-          <span>{today}</span>
-          <span className="tabular-nums">
-            {clock}
-            {zone ? ` · ${zone.replace(/_/g, ' ')}` : ''}
-          </span>
-        </div>
-      </div>
-
-      {/* Slim vertical timeline */}
-      <ol className="mt-5 space-y-0">
-        {slots.map((slot, i) => {
-          const isNext = slot === upcoming;
-          const passed = i <= currentIdx;
-          const label =
-            isFriday && slot.key === 'dhuhr' ? 'Jumuʿah / Dhuhr' : slot.label;
-
-          return (
-            <li key={slot.key} className="relative flex gap-4 py-2.5">
-              <div className="flex w-4 flex-col items-center">
-                <span
-                  className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-night-900 ${
-                    isNext
-                      ? 'bg-gold-300 shadow-[0_0_12px_rgba(239,205,107,0.6)]'
-                      : passed
-                        ? 'bg-emerald-500/60'
-                        : 'bg-white/25'
-                  }`}
-                />
-                {i < slots.length - 1 && (
-                  <span className={`mt-1 w-px flex-1 ${passed ? 'bg-emerald-500/30' : 'bg-white/10'}`} />
-                )}
-              </div>
+        <div className="mt-3 flex gap-1 overflow-x-auto pb-0.5">
+          {prayerSlots.map((slot, i) => {
+            const isNext = slot === upcoming;
+            const passed = i <= currentIdx;
+            return (
               <div
-                className={`flex min-w-0 flex-1 items-baseline justify-between gap-3 rounded-xl px-3 py-1.5 transition ${
-                  isNext ? 'bg-gold-300/10' : ''
+                key={slot.key}
+                className={`min-w-[3.5rem] flex-1 rounded-md px-1.5 py-1.5 text-center ${
+                  isNext ? 'bg-emerald-950' : ''
                 }`}
               >
-                <div className="min-w-0">
-                  <p
-                    className={`text-sm font-medium ${
-                      isNext ? 'text-gold-100' : passed ? 'text-white/40' : 'text-white/80'
-                    }`}
-                  >
-                    {label}
-                  </p>
-                  <p className="font-arabic text-[11px] text-white/30" dir="rtl">
-                    {slot.arabic}
-                  </p>
-                </div>
+                <p className={`text-[10px] ${isNext ? 'font-semibold text-emerald-800' : passed ? 'text-white/30' : 'text-white/45'}`}>
+                  {isFriday && slot.key === 'dhuhr' ? 'Jumuʿah' : slot.label}
+                </p>
                 <p
-                  className={`shrink-0 font-display text-lg font-semibold tabular-nums ${
-                    isNext ? 'text-gold-200' : passed ? 'text-white/35' : 'text-white/70'
+                  className={`mt-0.5 font-display text-sm font-semibold tabular-nums ${
+                    isNext ? 'text-white' : passed ? 'text-white/30' : 'text-white/70'
                   }`}
                 >
                   {slot.time}
                 </p>
               </div>
-            </li>
-          );
-        })}
-      </ol>
+            );
+          })}
+        </div>
+        <Link href="/prayer-times" className="mt-2 inline-block text-[11px] font-medium text-emerald-800 hover:underline">
+          Full times →
+        </Link>
+      </div>
+    );
+  }
 
-      {elsewhere && (
-        <p className="mt-3 text-[11px] text-white/35">
-          Times are local to {zone!.replace(/_/g, ' ')}, not your device timezone.
-        </p>
-      )}
+  /* Full / embedded — table layout */
+  return (
+    <div>
+      <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/40 px-4 py-3">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-800">Next · Jafari</p>
+            <p className="mt-1 font-display text-2xl font-bold text-white">{upcoming?.label}</p>
+          </div>
+          <div className="text-right">
+            <p className="font-display text-2xl font-bold tabular-nums text-emerald-800">{upcoming?.time}</p>
+            <p className="text-xs text-white/45">
+              in {String(hoursLeft).padStart(2, '0')}h {String(minsOnly).padStart(2, '0')}m
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <table className="mt-3 w-full text-sm">
+        <tbody>
+          {slots.map((slot, i) => {
+            const isNext = slot.key === upcoming?.key;
+            const passed = prayerSlots.findIndex((s) => s.key === slot.key) <= currentIdx && PRAYER_KEYS.has(slot.key);
+            const label = isFriday && slot.key === 'dhuhr' ? 'Jumuʿah / Dhuhr' : slot.label;
+            return (
+              <tr key={slot.key} className={`border-b border-white/8 ${isNext ? 'bg-emerald-950/40' : ''}`}>
+                <td className={`py-2 pl-1 font-medium ${passed && !isNext ? 'text-white/35' : 'text-white/75'}`}>
+                  {label}
+                </td>
+                <td
+                  className={`py-2 pr-1 text-right font-display text-base font-semibold tabular-nums ${
+                    isNext ? 'text-emerald-800' : passed ? 'text-white/30' : 'text-white/65'
+                  }`}
+                >
+                  {slot.time}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
