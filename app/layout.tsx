@@ -7,23 +7,24 @@ import { Aurora } from '@/app/components/Aurora';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Fiqah — Comparative Shia Fiqh',
+  title: 'Shia Fiqh — Comparative Marja Corpus',
   description:
-    'Compare Shia fiqh masail across maraji, ask grounded questions, and find Qibla and Jafari prayer times.',
+    'Compare Shia fiqh masail, ask grounded questions, and find Qibla and Jafari prayer times for your location.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" data-theme="light" suppressHydrationWarning>
+    <html lang="en" data-theme="dark" suppressHydrationWarning>
       <head>
+        {/* Applies the saved theme before first paint, avoiding a dark flash. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className="min-h-screen font-sans">
+      <body className="min-h-screen">
         <ThemeProvider>
           <AuthProvider>
             <Aurora />
             <Navbar />
-            <div className="pt-[4.25rem]">{children}</div>
+            <div className="pt-20">{children}</div>
             <Footer />
           </AuthProvider>
         </ThemeProvider>

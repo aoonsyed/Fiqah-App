@@ -52,20 +52,20 @@ function FatwaCard({
 
   return (
     <article
-      className={`group relative flex flex-col overflow-hidden rounded-xl border bg-night-800 transition-colors duration-200 ${
+      className={`group relative flex flex-col overflow-hidden rounded-2xl border bg-gradient-to-b from-white/[0.06] to-white/[0.02] shadow-lg shadow-black/20 transition-all duration-300 ${
         expanded
-          ? 'col-span-full border-emerald-500/40'
-          : 'border-white/10 hover:border-emerald-500/30'
-      } ${pinned ? 'border-emerald-800' : ''} ${spotlight ? 'lg:col-span-2' : ''}`}
+          ? 'col-span-full border-gold-300/40 from-white/[0.09] shadow-gold-300/5 ring-1 ring-gold-300/25'
+          : 'border-white/10 hover:border-gold-300/35 hover:from-white/[0.08]'
+      } ${pinned ? 'ring-2 ring-emerald-400/45' : ''} ${spotlight ? 'lg:col-span-2' : ''}`}
     >
       <button
         type="button"
         onClick={onToggleExpand}
-        className="flex w-full flex-col p-5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+        className="flex w-full flex-col p-5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-300/50"
         aria-expanded={expanded}
       >
         <div className="flex items-start gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-emerald-950 text-xs font-bold text-emerald-800">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-emerald-600/80 to-emerald-900 text-sm font-bold text-gold-100 ring-1 ring-white/10 transition group-hover:scale-105">
             {marjaInitials(name)}
           </span>
           <div className="min-w-0 flex-1">
@@ -73,15 +73,15 @@ function FatwaCard({
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <RulingBadge type={display.displayRuling} />
               {display.rulingIsPlaceholder && (
-                <span className="text-[10px] uppercase tracking-wider text-white/40">Aligned</span>
+                <span className="text-[10px] uppercase tracking-wider text-amber-200/60">Aligned</span>
               )}
               {!expanded && (
-                <span className="text-[10px] uppercase tracking-wider text-white/35">Open</span>
+                <span className="text-[10px] uppercase tracking-wider text-white/35">Tap to open</span>
               )}
             </div>
           </div>
           <span
-            className={`mt-1 shrink-0 text-emerald-800 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}
+            className={`mt-1 shrink-0 text-gold-200/80 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}
             aria-hidden
           >
             ▾
@@ -92,7 +92,7 @@ function FatwaCard({
             <FatwaAnswerBody fatwa={fatwa} questionEn={questionEn} expanded hideRulingRow />
           </div>
         ) : (
-          <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-white/55">{display.rulingText}</p>
+          <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-emerald-100/75">{display.rulingText}</p>
         )}
       </button>
 
