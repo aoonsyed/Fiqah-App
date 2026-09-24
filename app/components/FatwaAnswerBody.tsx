@@ -30,7 +30,7 @@ export function FatwaAnswerBody({
           <h2 className="font-semibold text-white">{name}</h2>
           <RulingBadge type={d.displayRuling} />
           {d.rulingIsPlaceholder && (
-            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-100/90 ring-1 ring-amber-400/30">
+            <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900 ring-1 ring-amber-600/25">
               Awaiting official import
             </span>
           )}
@@ -54,11 +54,11 @@ export function FatwaAnswerBody({
       )}
 
       <div
-        className={`rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/50 to-emerald-950/20 p-5 ${
+        className={`rounded-xl border border-emerald-500/25 bg-emerald-950/50 p-5 ${
           expanded ? '' : 'line-clamp-4'
         }`}
       >
-        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-300/90">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-800">
           {d.kind === 'imported' ? 'Hukm — published answer' : 'Ruling & explanation'}
         </p>
         <p className="mt-3 font-display text-base font-semibold leading-snug text-white sm:text-lg">

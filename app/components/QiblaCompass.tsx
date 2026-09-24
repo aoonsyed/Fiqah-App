@@ -190,10 +190,10 @@ function AlignmentHint({ bearing, heading }: { bearing: number; heading: number 
   return (
     <p
       role="status"
-      className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${
+      className={`rounded-md border px-3 py-1.5 text-sm font-semibold transition-colors ${
         aligned
-          ? 'border-emerald-400/50 bg-emerald-500/15 text-emerald-300'
-          : 'border-white/12 bg-white/5 text-white/60'
+          ? 'border-emerald-500/40 bg-emerald-950 text-emerald-800'
+          : 'border-white/12 bg-night-700 text-white/55'
       }`}
     >
       {aligned

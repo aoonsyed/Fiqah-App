@@ -4,7 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 
 export type Theme = 'dark' | 'light';
 
-const STORAGE_KEY = 'nur:theme';
+const STORAGE_KEY = 'fiqah:theme';
 
 interface ThemeContextValue {
   theme: Theme;
@@ -14,20 +14,15 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-/**
- * Runs before paint, inlined in the document head: without it the page renders
- * dark for a frame before React restores a saved light theme.
- */
+/** Default light; respect saved preference. */
 export const THEME_INIT_SCRIPT = `(function(){try{
 var t=localStorage.getItem('${STORAGE_KEY}');
-if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}
+if(t!=='light'&&t!=='dark'){t='light';}
 document.documentElement.setAttribute('data-theme',t);
-}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`;
+}catch(e){document.documentElement.setAttribute('data-theme','light');}})();`;
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // Matches the server-rendered default; the script above has already applied
-  // the real one to <html>, and the effect below syncs React to it on mount.
-  const [theme, setThemeState] = useState<Theme>('dark');
+  const [theme, setThemeState] = useState<Theme>('light');
 
   useEffect(() => {
     const current = document.documentElement.getAttribute('data-theme');
@@ -40,7 +35,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     try {
       localStorage.setItem(STORAGE_KEY, next);
     } catch {
-      /* storage blocked — the choice still applies for this page view */
+      /* ignore */
     }
   }, []);
 
@@ -58,7 +53,6 @@ export function useTheme() {
   return context;
 }
 
-/** Sun/moon switch for the navbar. */
 export function ThemeToggle({ className = '' }: { className?: string }) {
   const { theme, toggleTheme } = useTheme();
   const isLight = theme === 'light';
@@ -69,7 +63,7 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
       onClick={toggleTheme}
       aria-label={`Switch to ${isLight ? 'dark' : 'light'} theme`}
       title={`Switch to ${isLight ? 'dark' : 'light'} theme`}
-      className={`grid h-9 w-9 place-items-center rounded-xl border border-white/12 bg-white/[0.04] text-white/70 transition hover:border-gold-300/45 hover:text-gold-200 ${className}`}
+      className={`grid h-9 w-9 place-items-center rounded-md border border-white/15 text-white/60 transition hover:border-emerald-500/40 hover:text-emerald-800 ${className}`}
     >
       {isLight ? (
         <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

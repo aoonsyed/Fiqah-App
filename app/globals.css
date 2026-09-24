@@ -1,71 +1,77 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Inter:wght@400;500;600;700&family=Amiri:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,800&family=Outfit:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root,
-:root[data-theme='dark'] {
-  /* Channel triplets: Tailwind composes them with its own alpha values. */
-  --c-fg: 232 238 245; /* "white" utilities */
-  --c-shadow: 0 0 0;
-  --c-bg: 5 9 15;
-  --c-surface: 10 16 24;
-  --c-surface-2: 17 26 38;
-  --c-surface-3: 26 38 54;
-
-  --c-emerald-350: 74 222 159;
-  --c-emerald-500: 16 185 129;
-  --c-emerald-800: 6 78 59;
-  --c-emerald-900: 6 60 46;
-  --c-emerald-950: 3 38 30;
-
-  --c-gold-100: 253 243 211;
-  --c-gold-200: 247 227 161;
-  --c-gold-300: 239 205 107;
-  --c-gold-400: 224 178 60;
-  --c-gold-500: 200 147 42;
-
-  /* Text on a gold button, and the sheen/pattern overlays. */
-  --on-accent: #05090f;
-  --sheen: rgba(239, 205, 107, 0.13);
-  --card-shadow: rgba(0, 0, 0, 0.8);
-  --scrollbar-track: #0a1018;
-  --aurora-opacity: 1;
-}
-
 /**
- * Light theme. The same utilities are reused: "white" becomes near-black ink,
- * and the night surfaces become paper tones. Gold is darkened so gold text
- * stays readable on a light background, while buttons keep the brighter gold.
+ * Courtyard ink — light-first.
+ * Cool mist paper, deep ink type, matte teal accent (not neon emerald / gold glow).
+ * `white` utilities map to --c-fg (ink on light, near-white on dark).
  */
+:root,
 :root[data-theme='light'] {
-  --c-fg: 15 27 41;
-  --c-shadow: 15 27 41;
-  --c-bg: 249 250 251;
-  --c-surface: 255 255 255;
-  --c-surface-2: 241 245 249;
-  --c-surface-3: 226 232 240;
+  --c-fg: 18 32 40;
+  --c-shadow: 18 32 40;
+  --c-bg: 232 238 242;
+  --c-surface: 252 253 254;
+  --c-surface-2: 243 247 249;
+  --c-surface-3: 220 228 234;
 
-  --c-emerald-350: 4 120 87;
-  --c-emerald-500: 16 185 129;
-  --c-emerald-800: 6 95 70;
-  --c-emerald-900: 4 120 87;
-  --c-emerald-950: 236 253 245;
+  /* Teal (was emerald) */
+  --c-emerald-350: 14 120 105;
+  --c-emerald-500: 10 107 92;
+  --c-emerald-800: 8 74 64;
+  --c-emerald-900: 6 55 48;
+  --c-emerald-950: 220 240 235;
 
-  --c-gold-100: 120 83 8;
-  --c-gold-200: 146 100 12;
-  --c-gold-300: 180 131 24;
-  --c-gold-400: 202 149 30;
-  --c-gold-500: 161 116 20;
+  /* Copper-ink accent (was gold) — readable on light paper */
+  --c-gold-100: 92 48 18;
+  --c-gold-200: 122 64 24;
+  --c-gold-300: 154 84 32;
+  --c-gold-400: 180 100 40;
+  --c-gold-500: 130 70 28;
 
-  --on-accent: #ffffff;
-  --sheen: rgba(180, 131, 24, 0.12);
-  --card-shadow: rgba(15, 27, 41, 0.14);
-  --scrollbar-track: #e9edf2;
-  --aurora-opacity: 0.35;
+  --on-accent: #f8fafb;
+  --sheen: rgba(10, 107, 92, 0.06);
+  --card-shadow: rgba(18, 32, 40, 0.08);
+  --scrollbar-track: #e1e8ec;
+  --aurora-opacity: 0.55;
+  --rule: rgba(18, 32, 40, 0.12);
+  --muted: rgba(18, 32, 40, 0.55);
 
   color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --c-fg: 236 242 245;
+  --c-shadow: 0 0 0;
+  --c-bg: 12 18 22;
+  --c-surface: 18 26 32;
+  --c-surface-2: 26 36 44;
+  --c-surface-3: 38 50 60;
+
+  --c-emerald-350: 110 200 180;
+  --c-emerald-500: 45 160 140;
+  --c-emerald-800: 20 90 78;
+  --c-emerald-900: 14 60 52;
+  --c-emerald-950: 8 28 24;
+
+  --c-gold-100: 232 210 185;
+  --c-gold-200: 220 185 145;
+  --c-gold-300: 200 155 100;
+  --c-gold-400: 180 130 75;
+  --c-gold-500: 160 110 60;
+
+  --on-accent: #0c1216;
+  --sheen: rgba(45, 160, 140, 0.08);
+  --card-shadow: rgba(0, 0, 0, 0.45);
+  --scrollbar-track: #121a20;
+  --aurora-opacity: 0.4;
+  --rule: rgba(236, 242, 245, 0.12);
+  --muted: rgba(236, 242, 245, 0.55);
+
+  color-scheme: dark;
 }
 
 * {
@@ -80,111 +86,92 @@ html {
 }
 
 body {
-  font-family: Inter, system-ui, sans-serif;
+  font-family: Outfit, system-ui, sans-serif;
   background: rgb(var(--c-bg));
   color: rgb(var(--c-fg));
   overflow-x: hidden;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 ::selection {
-  background: rgb(var(--c-gold-300));
+  background: rgb(var(--c-emerald-500));
   color: var(--on-accent);
 }
 
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: var(--scrollbar-track);
 }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(rgb(var(--c-emerald-800)), rgb(var(--c-emerald-950)));
-  border-radius: 99px;
-  border: 2px solid var(--scrollbar-track);
+  background: rgb(var(--c-emerald-800) / 0.45);
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(rgb(var(--c-gold-300)), rgb(var(--c-gold-500)));
+  background: rgb(var(--c-emerald-500));
 }
 
 @layer components {
-  /* Frosted panel used across cards, navbar, modals */
   .glass {
-    @apply border border-white/10 bg-white/[0.04] backdrop-blur-xl;
+    @apply border border-white/10 bg-night-800;
   }
 
   .card {
-    @apply glass relative overflow-hidden rounded-2xl transition-all duration-500;
+    @apply relative overflow-hidden rounded-xl border border-white/10 bg-night-800 transition-colors duration-200;
   }
 
-  /* Gold sheen that sweeps across a card on hover */
-  .card::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(115deg, transparent 35%, var(--sheen) 50%, transparent 65%);
-    background-size: 250% 100%;
-    background-position: 200% 0;
-    opacity: 0;
-    transition: opacity 0.4s;
-    pointer-events: none;
-  }
-  .card:hover::after {
-    opacity: 1;
-    animation: shimmer 1.4s linear;
-  }
   .card:hover {
-    @apply -translate-y-1.5 border-gold-300/40;
-    box-shadow: 0 24px 60px -20px var(--card-shadow), 0 0 0 1px rgba(180, 131, 24, 0.12);
+    @apply border-emerald-500/35;
+    box-shadow: 0 12px 40px -16px var(--card-shadow);
   }
 
   .btn-gold {
-    @apply relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-full
-      bg-gradient-to-r from-gold-300 to-gold-500 px-6 py-3 text-sm font-semibold
-      shadow-lg shadow-gold-500/20 transition-transform duration-300 hover:scale-[1.04] active:scale-95;
+    @apply relative inline-flex items-center justify-center gap-2 rounded-md
+      bg-emerald-800 px-5 py-2.5 text-sm font-semibold tracking-wide
+      transition duration-200 hover:bg-emerald-500 active:scale-[0.98];
     color: var(--on-accent);
   }
 
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/15
-      px-6 py-3 text-sm font-semibold text-white/80 transition-all duration-300
-      hover:border-gold-300/50 hover:bg-white/5 hover:text-white;
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-white/15
+      bg-transparent px-5 py-2.5 text-sm font-semibold text-white/70
+      transition duration-200 hover:border-emerald-500/40 hover:bg-white/[0.04] hover:text-white;
   }
 
   .text-gradient-gold {
-    background: linear-gradient(
-      100deg,
-      rgb(var(--c-gold-100)),
-      rgb(var(--c-gold-300)),
-      rgb(var(--c-gold-500)),
-      rgb(var(--c-gold-300)),
-      rgb(var(--c-gold-100))
-    );
-    background-size: 200% auto;
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    animation: shimmer 6s linear infinite;
+    color: rgb(var(--c-emerald-500));
   }
 
   .eyebrow {
-    @apply inline-flex items-center gap-2 rounded-full border border-gold-300/25 bg-gold-300/[0.07]
-      px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-gold-200;
+    @apply text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-800;
   }
 
   .section-title {
-    @apply font-display text-4xl font-bold tracking-tight text-white sm:text-5xl;
+    @apply font-display text-3xl font-bold tracking-tight text-white sm:text-4xl;
+  }
+
+  .ink-rule {
+    height: 1px;
+    background: var(--rule);
   }
 }
 
 @layer utilities {
-  /* Eight-point Islamic star lattice — the signature backdrop motif */
   .pattern-girih {
-    background-image: radial-gradient(circle at 50% 50%, rgb(var(--c-gold-300) / 0.13) 1.2px, transparent 1.2px),
-      linear-gradient(45deg, transparent 47%, rgb(var(--c-emerald-350) / 0.06) 49%, rgb(var(--c-emerald-350) / 0.06) 51%, transparent 53%),
-      linear-gradient(-45deg, transparent 47%, rgb(var(--c-emerald-350) / 0.06) 49%, rgb(var(--c-emerald-350) / 0.06) 51%, transparent 53%);
-    background-size: 34px 34px, 68px 68px, 68px 68px;
+    background-image:
+      radial-gradient(circle at 50% 50%, rgb(var(--c-emerald-500) / 0.07) 1px, transparent 1px),
+      linear-gradient(0deg, transparent 49%, rgb(var(--c-fg) / 0.03) 50%, transparent 51%),
+      linear-gradient(90deg, transparent 49%, rgb(var(--c-fg) / 0.03) 50%, transparent 51%);
+    background-size: 28px 28px, 56px 56px, 56px 56px;
+  }
+
+  .paper-wash {
+    background:
+      radial-gradient(ellipse 90% 60% at 10% 0%, rgb(var(--c-emerald-950) / 0.9), transparent 55%),
+      radial-gradient(ellipse 70% 50% at 100% 10%, rgb(var(--c-surface-3) / 0.8), transparent 50%),
+      rgb(var(--c-bg));
   }
 
   .mask-fade-b {
@@ -192,11 +179,10 @@ body {
     mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
   }
 
-  /* Reveal-on-scroll: paired with the Reveal component's IntersectionObserver */
   .reveal {
     opacity: 0;
-    transform: translateY(28px);
-    transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+    transform: translateY(20px);
+    transition: opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1), transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
   }
   .reveal.is-visible {
     opacity: 1;
