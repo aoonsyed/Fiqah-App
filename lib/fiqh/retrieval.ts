@@ -147,14 +147,25 @@ async function retrieveCandidates(
   return fuse(lists).slice(0, RERANK_POOL);
 }
 
+/** The corpus holds the same question under several ids; results show it once. */
+function dedupeKey(hit: FiqhSearchHit): string {
+  return hit.questionEn.toLowerCase().replace(/\s+/g, ' ').trim().slice(0, 300);
+}
+
 /** Reciprocal rank fusion: rewards agreement between searches without comparing their raw scores. */
 function fuse(lists: FiqhSearchHit[][]): FiqhSearchHit[] {
   const scored = new Map<string, { hit: FiqhSearchHit; score: number }>();
   for (const list of lists) {
+    const seen = new Set<string>();
     list.forEach((hit, i) => {
-      const entry = scored.get(hit.questionId) ?? { hit, score: 0 };
+      const key = dedupeKey(hit);
+      if (seen.has(key)) return;
+      seen.add(key);
+      const entry = scored.get(key) ?? { hit, score: 0 };
       entry.score += 1 / (RRF_K + i + 1);
-      scored.set(hit.questionId, entry);
+      // Of duplicate copies, keep the one with the most marja answers.
+      if (hit.marjaCount > entry.hit.marjaCount) entry.hit = hit;
+      scored.set(key, entry);
     });
   }
   return [...scored.values()]
