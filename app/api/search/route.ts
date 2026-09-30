@@ -1,5 +1,6 @@
 import { errorMessage } from '@/lib/errors';
-import { compareQuestion, getCategoryBySlug, getMarjaBySlug, searchFiqhRobust } from '@/lib/fiqh/db';
+import { compareQuestion, getCategoryBySlug, getMarjaBySlug } from '@/lib/fiqh/db';
+import { smartSearchFiqh } from '@/lib/fiqh/retrieval';
 import { NextRequest, NextResponse } from 'next/server';
 import { rateLimit } from '@/lib/rate-limit';
 
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
     }
 
     const compareTop = searchParams.get('compareTop') === '1';
-    const results = await searchFiqhRobust(q.trim(), limit, filterCategoryId, filterMarjaId);
+    const { hits: results } = await smartSearchFiqh(q.trim(), { limit, filterCategoryId, filterMarjaId });
 
     let topCompare = null;
     if (compareTop && results[0]) {

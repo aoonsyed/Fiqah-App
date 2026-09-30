@@ -1,5 +1,6 @@
 import { generate, type LLMMessage } from '@/lib/rag/llm';
-import { compareQuestion, getQuestionBySlug, searchFiqhRobust } from './db';
+import { compareQuestion, getQuestionBySlug } from './db';
+import { smartSearchFiqh } from './retrieval';
 import type { CompareSummary, Fatwa, FiqhSearchHit, RulingType } from './types';
 
 export interface FiqhCitation {
@@ -28,13 +29,18 @@ Rules:
 2. Use [[citation:N]] markers matching the numbered excerpts (1-based).
 3. This is informational, not a personal religious ruling — tell the user to follow their marja.
 4. Do not cite hadith collections or narrations unless an excerpt explicitly mentions them.
-5. If excerpts do not cover the question, say so and suggest browsing related topics.`;
+5. If excerpts do not cover the question, say so and suggest browsing related topics.
+6. Reply in the language the user wrote in. Some excerpts are in Persian or Arabic; translate what you use.`;
+
+/** Fatwas per supporting question, after the best match's full set. */
+const SUPPORTING_FATWAS = 3;
+const MAX_CITATIONS = 16;
 
 export async function fiqhChat(
   query: string,
   history: LLMMessage[] = [],
 ): Promise<FiqhChatResponse> {
-  const hits = await searchFiqhRobust(query, 8);
+  const { hits, understanding } = await smartSearchFiqh(query, { history, limit: 6 });
   if (hits.length === 0) {
     return {
       answer:
@@ -56,19 +62,15 @@ export async function fiqhChat(
   const citations: FiqhCitation[] = [];
   let n = 0;
 
-  let pool: Array<{ f: Fatwa; hit: FiqhSearchHit; detail: CompareSummary }> = [];
-  if (primaryCompare?.fatwas.length) {
-    pool = primaryCompare.fatwas.map((f) => ({
-      f,
-      hit: hits[0]!,
-      detail: primaryCompare,
-    }));
-  } else {
-    const details = await Promise.all(hits.slice(0, 3).map((h) => compareQuestion(h.questionSlug)));
-    pool = details.flatMap((d, hi) =>
-      d ? d.fatwas.map((f) => ({ f, hit: hits[hi]!, detail: d })) : [],
-    );
-  }
+  // The best match's full marja comparison first, then a few fatwas from the
+  // next matches so a narrow top hit doesn't leave the answer uncovered.
+  const supporting = await Promise.all(hits.slice(1, 3).map((h) => compareQuestion(h.questionSlug)));
+  const pool: Array<{ f: Fatwa; hit: FiqhSearchHit; detail: CompareSummary }> = [
+    ...(primaryCompare?.fatwas ?? []).map((f) => ({ f, hit: hits[0]!, detail: primaryCompare! })),
+    ...supporting.flatMap((d, i) =>
+      d ? d.fatwas.slice(0, SUPPORTING_FATWAS).map((f) => ({ f, hit: hits[i + 1]!, detail: d })) : [],
+    ),
+  ];
 
   for (const { f, hit, detail } of pool) {
     n += 1;
@@ -82,7 +84,7 @@ export async function fiqhChat(
       rulingType: f.rulingType,
       excerpt: f.answerEn.slice(0, 600),
     });
-    if (n >= 16) break;
+    if (n >= MAX_CITATIONS) break;
   }
 
   if (citations.length === 0) {
@@ -110,7 +112,10 @@ export async function fiqhChat(
     ...history.slice(-6),
     {
       role: 'user',
-      content: `User question: ${query}\n\nFatwa excerpts:\n${context}\n\nAnswer with [[citation:N]] markers.`,
+      content:
+        `User question: ${query}\n` +
+        (understanding.searchQuery !== query ? `(Understood as: ${understanding.searchQuery})\n` : '') +
+        `\nFatwa excerpts:\n${context}\n\nAnswer with [[citation:N]] markers.`,
     },
   ];
 

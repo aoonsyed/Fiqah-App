@@ -38,9 +38,9 @@ const config: Config = {
         },
       },
       fontFamily: {
-        display: ['"Cormorant Garamond"', 'Georgia', 'serif'],
+        display: ['Fraunces', 'Georgia', 'serif'],
         arabic: ['Amiri', '"Noto Naskh Arabic"', 'serif'],
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Outfit', 'system-ui', 'sans-serif'],
       },
       keyframes: {
         'fade-up': { from: { opacity: '0', transform: 'translateY(24px)' }, to: { opacity: '1', transform: 'none' } },

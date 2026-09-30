@@ -1,5 +1,6 @@
 import { errorMessage } from '@/lib/errors';
-import { getCategoryBySlug, getMarjaBySlug, searchFiqh } from '@/lib/fiqh/db';
+import { getCategoryBySlug, getMarjaBySlug } from '@/lib/fiqh/db';
+import { smartSearchFiqh } from '@/lib/fiqh/retrieval';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
       filterMarjaId = marja.id;
     }
 
-    const results = await searchFiqh(q.trim(), limit, filterCategoryId, filterMarjaId);
+    const { hits: results } = await smartSearchFiqh(q.trim(), { limit, filterCategoryId, filterMarjaId });
     return NextResponse.json({ query: q, results, count: results.length });
   } catch (error) {
     return NextResponse.json(

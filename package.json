@@ -18,7 +18,8 @@
     "fiqh:expand-existing": "tsx --env-file=.env.local scripts/fiqh/expand-existing-maraji.ts",
     "fiqh:seed-mass": "tsx --env-file=.env.local scripts/fiqh/seed-mass-corpus.ts",
     "fiqh:seed-aggressive": "tsx --env-file=.env.local scripts/fiqh/seed-aggressive.ts",
-    "fiqh:setup": "npm run fiqh:migrate && npm run fiqh:import -- --wipe",
+    "fiqh:embed": "tsx --env-file=.env.local scripts/fiqh/embed-questions.ts",
+    "fiqh:setup": "npm run fiqh:migrate && npm run fiqh:import -- --wipe && npm run fiqh:embed",
     "db:probe": "tsx --env-file=.env.local scripts/probe-supabase.ts"
   },
   "dependencies": {

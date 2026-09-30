@@ -291,24 +291,33 @@ export async function compareQuestion(slug: string): Promise<CompareSummary | nu
   };
 }
 
+/** Keyword search (stemmed, stopwords dropped, terms OR-ed). */
 export async function searchFiqh(
   query: string,
   limit = 20,
   filterCategoryId?: string,
   filterMarjaId?: string,
 ): Promise<FiqhSearchHit[]> {
-  const hits = await searchFiqhOnce(query, limit, filterCategoryId, filterMarjaId);
-  return hits;
+  const { data, error } = await supabase.rpc('search_fiqh', {
+    query_text: query,
+    match_count: limit,
+    filter_category_id: filterCategoryId ?? null,
+    filter_marja_id: filterMarjaId ?? null,
+  });
+  if (error) throw error;
+
+  return mapSearchRows(data);
 }
 
-async function searchFiqhOnce(
-  query: string,
-  limit: number,
+/** Nearest questions by embedding; rank is cosine similarity. */
+export async function matchFiqhQuestions(
+  embedding: number[],
+  limit = 20,
   filterCategoryId?: string,
   filterMarjaId?: string,
 ): Promise<FiqhSearchHit[]> {
-  const { data, error } = await supabase.rpc('search_fiqh', {
-    query_text: query,
+  const { data, error } = await supabase.rpc('match_fiqh_questions', {
+    query_embedding: embedding,
     match_count: limit,
     filter_category_id: filterCategoryId ?? null,
     filter_marja_id: filterMarjaId ?? null,
@@ -343,67 +352,6 @@ function mapSearchRows(data: unknown): FiqhSearchHit[] {
       marjaCount: Number(r.marja_count),
     }),
   );
-}
-
-/** Tries synonym/typo variants and merges hits (for chat + search). */
-export async function searchFiqhRobust(
-  query: string,
-  limit = 20,
-  filterCategoryId?: string,
-  filterMarjaId?: string,
-): Promise<FiqhSearchHit[]> {
-  const { expandQueryVariants } = await import('./query-expand');
-  const byId = new Map<string, FiqhSearchHit>();
-
-  for (const variant of expandQueryVariants(query)) {
-    const batch = await searchFiqhOnce(variant, limit, filterCategoryId, filterMarjaId);
-    for (const h of batch) {
-      const prev = byId.get(h.questionId);
-      if (!prev || h.rank > prev.rank) byId.set(h.questionId, h);
-    }
-    if (byId.size >= limit) break;
-  }
-
-  const merged = [...byId.values()].sort((a, b) => b.rank - a.rank);
-  if (merged.length > 0) return merged.slice(0, limit);
-
-  const { tokensForFallback } = await import('./query-expand');
-  const tokens = tokensForFallback(query);
-  if (tokens.length === 0) return [];
-
-  const orParts = tokens.map((t) => `question_en.ilike.%${t.replace(/[%_,]/g, '')}%`);
-  const { data, error } = await supabase
-    .from('fiqh_questions')
-    .select('id, slug, question_en, question_ar, fiqh_subcategories!inner(slug, fiqh_categories!inner(slug))')
-    .or(orParts.slice(0, 12).join(','))
-    .limit(limit);
-  if (error || !data?.length) return [];
-
-  const hits: FiqhSearchHit[] = [];
-  for (const row of data) {
-    const sub = row.fiqh_subcategories as unknown as {
-      slug: string;
-      fiqh_categories: { slug: string } | { slug: string }[];
-    };
-    const cat = sub.fiqh_categories;
-    const categorySlug = Array.isArray(cat) ? cat[0]?.slug : cat?.slug;
-    const { count } = await supabase
-      .from('fatwas')
-      .select('*', { count: 'exact', head: true })
-      .eq('question_id', row.id as string);
-    hits.push({
-      questionId: row.id as string,
-      questionSlug: row.slug as string,
-      questionEn: row.question_en as string,
-      questionAr: (row.question_ar as string | null) ?? null,
-      subcategorySlug: sub.slug,
-      categorySlug: categorySlug ?? 'worship',
-      rank: 0.1,
-      topRulingType: null,
-      marjaCount: count ?? 0,
-    });
-  }
-  return hits;
 }
 
 export async function listPrinciples(): Promise<FiqhPrinciple[]> {
