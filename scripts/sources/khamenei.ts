@@ -59,10 +59,16 @@ export async function khameneiBooks(): Promise<BookSource[]> {
           for (const block of text.slice(first).split(/(?=\bQ\s*\d+\s*[:.])/)) {
             const m = block.match(/^Q\s*(\d+)\s*[:.]\s*([\s\S]+)$/);
             if (m) {
+              const body = m[2].replace(/\s+/g, ' ').trim();
+              const qEnd = body.indexOf('?');
+              const text =
+                qEnd > 20 && qEnd < body.length - 15
+                  ? `${body.slice(0, qEnd + 1).trim()}\n\n${body.slice(qEnd + 1).trim()}`
+                  : `Q: ${body}`;
               records.push({
                 number: `Q ${m[1]}`,
                 chapter,
-                text: `Q: ${m[2].replace(/\s+/g, ' ').trim()}`,
+                text,
                 sourceUrl: BOOK_URL,
               });
             }
