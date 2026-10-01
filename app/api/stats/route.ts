@@ -1,3 +1,4 @@
+import { publicErrorMessage } from '@/lib/errors';
 import { getCorpusStats } from '@/lib/fiqh/db';
 import { catalogQuestionTarget, catalogSubcategoryCount, CATEGORIES, MARAJI } from '@/lib/fiqh/catalog';
 import { NextResponse } from 'next/server';
@@ -21,7 +22,7 @@ export async function GET() {
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Stats unavailable' },
+      { error: 'Stats unavailable', message: publicErrorMessage(error) },
       { status: 503 },
     );
   }

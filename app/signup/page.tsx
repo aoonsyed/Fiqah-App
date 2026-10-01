@@ -31,7 +31,7 @@ export default function SignupPage() {
 
     setLoading(true);
     try {
-      const result = await signUp(email, password);
+      const result = await signUp(email.trim(), password);
       router.push(result === 'signed-in' ? '/chat' : `/login?check-email=${encodeURIComponent(email)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed');
@@ -59,6 +59,8 @@ export default function SignupPage() {
         <Field
           label="Email"
           type="email"
+          autoComplete="email"
+          maxLength={254}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={loading}
@@ -70,6 +72,8 @@ export default function SignupPage() {
           <Field
             label="Password"
             type="password"
+            autoComplete="new-password"
+            maxLength={72}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={loading}
@@ -96,6 +100,8 @@ export default function SignupPage() {
         <Field
           label="Confirm password"
           type="password"
+          autoComplete="new-password"
+          maxLength={72}
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           disabled={loading}

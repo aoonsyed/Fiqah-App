@@ -212,3 +212,15 @@ BEGIN
   LIMIT match_count;
 END;
 $$;
+
+-- ============================================================================
+-- Row-level security. The anon key is public (it ships in the browser bundle),
+-- so a table without RLS can be read, edited and deleted by anyone. With RLS on
+-- and no policies, only the service-role key used by server code can touch these.
+-- ============================================================================
+ALTER TABLE books ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chapters ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hadiths ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hadith_chunks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;

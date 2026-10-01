@@ -35,7 +35,7 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      await signIn(email, password);
+      await signIn(email.trim(), password);
       router.replace(next);
     } catch (err) {
       const code = (err as { code?: string })?.code;
@@ -82,6 +82,8 @@ function LoginForm() {
         <Field
           label="Email"
           type="email"
+          autoComplete="email"
+          maxLength={254}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={loading}
@@ -92,6 +94,8 @@ function LoginForm() {
         <Field
           label="Password"
           type="password"
+          autoComplete="current-password"
+          maxLength={72}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           disabled={loading}

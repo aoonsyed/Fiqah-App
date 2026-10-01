@@ -1,4 +1,4 @@
-import { errorMessage } from '@/lib/errors';
+import { publicErrorMessage } from '@/lib/errors';
 import { getQuestionBySlug, listFatwasForQuestion } from '@/lib/fiqh/db';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -18,7 +18,7 @@ export async function GET(
     return NextResponse.json({ question, fatwas });
   } catch (error) {
     return NextResponse.json(
-      { error: 'Failed to load question', message: errorMessage(error) },
+      { error: 'Failed to load question', message: publicErrorMessage(error) },
       { status: 503 },
     );
   }

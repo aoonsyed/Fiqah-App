@@ -1,5 +1,5 @@
 import { supabaseAdmin as supabase } from '@/lib/supabase-server';
-import { errorMessage } from '@/lib/errors';
+import { publicErrorMessage } from '@/lib/errors';
 import { NextResponse } from 'next/server';
 import { verifyAdminRequest } from '@/lib/admin-auth-server';
 
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     return NextResponse.json(
       {
         error: 'Failed to fetch statistics',
-        message: errorMessage(error),
+        message: publicErrorMessage(error),
       },
       { status: 500 },
     );

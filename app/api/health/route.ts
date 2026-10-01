@@ -1,4 +1,4 @@
-import { errorMessage } from '@/lib/errors';
+import { publicErrorMessage } from '@/lib/errors';
 import { fiqhTablesReady, getCorpusStats } from '@/lib/fiqh/db';
 import { NextResponse } from 'next/server';
 
@@ -24,7 +24,7 @@ export async function GET() {
       {
         status: 'error',
         database: 'error',
-        message: errorMessage(error),
+        message: publicErrorMessage(error),
       },
       { status: 500 },
     );

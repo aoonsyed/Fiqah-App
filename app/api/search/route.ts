@@ -1,31 +1,29 @@
-import { errorMessage } from '@/lib/errors';
+import { publicErrorMessage } from '@/lib/errors';
 import { compareQuestion, getCategoryBySlug, getMarjaBySlug, listPublishedFatwaRefs } from '@/lib/fiqh/db';
 import { questionHeading } from '@/lib/fiqh/question-heading';
 import { describeFatwaSource, sourceLine } from '@/lib/fiqh/source-info';
 import { smartSearchFiqh } from '@/lib/fiqh/retrieval';
 import { NextRequest, NextResponse } from 'next/server';
-import { rateLimit } from '@/lib/rate-limit';
-
-function clientKey(request: NextRequest): string {
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]?.trim() || 'anon';
-  return request.headers.get('x-real-ip') || 'anon';
-}
+import { getClientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit';
+import { intParam, MAX_SEARCH_CHARS } from '@/lib/validate';
 
 export async function GET(request: NextRequest) {
   try {
-    if (!rateLimit(`fiqh-search:${clientKey(request)}`, 40, 60)) {
-      return NextResponse.json({ error: 'Too many searches. Try again shortly.' }, { status: 429 });
+    if (!rateLimit(`fiqh-search:${getClientIp(request)}`, 40, 60)) {
+      return tooManyRequests('Too many searches. Try again shortly.');
     }
 
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 50);
+    const limit = intParam(searchParams.get('limit'), 20, 1, 50);
     const categorySlug = searchParams.get('category');
     const marjaSlug = searchParams.get('marja');
 
     if (!q?.trim()) {
       return NextResponse.json({ error: 'Search query (q) is required' }, { status: 400 });
+    }
+    if (q.length > MAX_SEARCH_CHARS) {
+      return NextResponse.json({ error: `Search query must be under ${MAX_SEARCH_CHARS} characters` }, { status: 400 });
     }
 
     let filterCategoryId: string | undefined;
@@ -82,7 +80,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Search error:', error);
     return NextResponse.json(
-      { error: 'Search failed', message: errorMessage(error) },
+      { error: 'Search failed', message: publicErrorMessage(error) },
       { status: 500 },
     );
   }

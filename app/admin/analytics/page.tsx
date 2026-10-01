@@ -4,8 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { authFetch } from '@/lib/auth-client';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/app/components/AuthProvider';
-import { isAdminEmail } from '@/lib/admin-auth';
+import { useIsAdmin } from '@/app/components/useIsAdmin';
 import { BarChart, DonutChart, AreaChart } from '@/app/components/Charts';
 import { Reveal, CountUp } from '@/app/components/Reveal';
 
@@ -22,7 +21,6 @@ interface Stats {
 const REFRESH_MS = 30_000;
 
 export default function AdminAnalytics() {
-  const { user, loading } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [history, setHistory] = useState<number[]>([]);
@@ -30,7 +28,7 @@ export default function AdminAnalytics() {
   const [error, setError] = useState('');
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
-  const authorized = !!user && isAdminEmail(user.email);
+  const { authorized, checking: loading } = useIsAdmin();
 
   useEffect(() => {
     if (!loading && !authorized) router.push('/login');

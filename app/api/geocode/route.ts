@@ -1,4 +1,4 @@
-import { errorMessage } from '@/lib/errors';
+import { publicErrorMessage } from '@/lib/errors';
 import { NextRequest, NextResponse } from 'next/server';
 import { rateLimit, getClientIp } from '@/lib/rate-limit';
 
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ name: await reverse(lat, lng) });
   } catch (error) {
     console.error('Geocode error:', error);
-    return NextResponse.json({ error: 'Geocoding failed', message: errorMessage(error) }, { status: 502 });
+    return NextResponse.json({ error: 'Geocoding failed', message: publicErrorMessage(error) }, { status: 502 });
   }
 }
 

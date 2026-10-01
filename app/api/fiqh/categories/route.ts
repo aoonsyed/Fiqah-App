@@ -1,4 +1,4 @@
-import { errorMessage } from '@/lib/errors';
+import { publicErrorMessage } from '@/lib/errors';
 import { listCategories, listSubcategories } from '@/lib/fiqh/db';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     return NextResponse.json(
-      { error: 'Failed to load categories', message: errorMessage(error) },
+      { error: 'Failed to load categories', message: publicErrorMessage(error) },
       { status: 503 },
     );
   }

@@ -19,27 +19,22 @@
     "fiqh:seed-mass": "tsx --env-file=.env.local scripts/fiqh/seed-mass-corpus.ts",
     "fiqh:seed-aggressive": "tsx --env-file=.env.local scripts/fiqh/seed-aggressive.ts",
     "fiqh:repair-makarem": "tsx --env-file=.env.local scripts/fiqh/repair-makarem.ts",
-    "fiqh:embed":"tsx --env-file=.env.local scripts/fiqh/embed-questions.ts",
+    "fiqh:embed": "tsx --env-file=.env.local scripts/fiqh/embed-questions.ts",
     "fiqh:setup": "npm run fiqh:migrate && npm run fiqh:import -- --wipe && npm run fiqh:embed",
-    "db:probe": "tsx --env-file=.env.local scripts/probe-supabase.ts"
+    "db:probe": "tsx --env-file=.env.local scripts/probe-supabase.ts",
+    "security:audit": "npm audit --omit=dev",
+    "security:db": "tsx --env-file=.env.local scripts/security/audit-db.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.24.0",
-    "@supabase/auth-helpers-nextjs": "^0.10.0",
-    "@supabase/auth-helpers-react": "^0.4.0",
     "@supabase/supabase-js": "^2.45.0",
-    "@vercel/kv": "^1.0.0",
     "@xenova/transformers": "^2.17.2",
-    "ai": "^3.0.0",
     "autoprefixer": "10.4.20",
-    "eslint-config-next": "^15.5.24",
     "js-tiktoken": "^1.0.0",
     "jszip": "^3.10.2",
     "lucide-react": "0.469.0",
     "mammoth": "^1.6.0",
     "next": "^15.5.24",
     "pdf-parse": "^1.1.1",
-    "pdfjs-dist": "^4.4.0",
     "postcss": "^8.5.23",
     "react": "19.0.0",
     "react-dom": "19.0.0",
@@ -53,9 +48,15 @@
     "@types/react": "19.0.7",
     "@types/react-dom": "19.0.3",
     "dotenv": "^17.4.2",
+    "eslint-config-next": "^15.5.27",
     "pg": "^8.23.0",
     "ts-node": "^10.9.1",
     "tsx": "^4.23.13",
     "typescript": "5.7.3"
+  },
+  "overrides": {
+    "postcss": "$postcss",
+    "protobufjs": "^7.6.6",
+    "sharp": "^0.35.5"
   }
 }

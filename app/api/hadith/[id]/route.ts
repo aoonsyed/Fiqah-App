@@ -1,4 +1,4 @@
-import { errorMessage } from '@/lib/errors';
+import { publicErrorMessage } from '@/lib/errors';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin as supabase } from '@/lib/supabase-server';
 import { unauthorized, verifyUserRequest } from '@/lib/auth-server';
@@ -43,6 +43,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     });
   } catch (error) {
     console.error('Hadith lookup error:', error);
-    return NextResponse.json({ error: 'Failed to load hadith', message: errorMessage(error) }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to load hadith', message: publicErrorMessage(error) }, { status: 500 });
   }
 }

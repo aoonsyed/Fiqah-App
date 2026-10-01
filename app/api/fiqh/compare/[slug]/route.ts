@@ -1,4 +1,4 @@
-import { errorMessage } from '@/lib/errors';
+import { publicErrorMessage } from '@/lib/errors';
 import { compareQuestion } from '@/lib/fiqh/db';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -17,7 +17,7 @@ export async function GET(
     return NextResponse.json(comparison);
   } catch (error) {
     return NextResponse.json(
-      { error: 'Comparison failed', message: errorMessage(error) },
+      { error: 'Comparison failed', message: publicErrorMessage(error) },
       { status: 503 },
     );
   }

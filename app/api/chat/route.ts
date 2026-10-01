@@ -1,43 +1,53 @@
-import { errorMessage } from '@/lib/errors';
+import { publicErrorMessage } from '@/lib/errors';
 import { fiqhChat } from '@/lib/fiqh/chat-engine';
 import { NextRequest, NextResponse } from 'next/server';
-import { rateLimit } from '@/lib/rate-limit';
+import { getClientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit';
+import { z } from 'zod';
 
-function clientKey(request: NextRequest): string {
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]?.trim() || 'anon';
-  return request.headers.get('x-real-ip') || 'anon';
-}
+/**
+ * Every character here is sent to the paid LLM, so sizes are capped. The engine
+ * only uses the last 6 history turns; anything beyond that is dropped.
+ */
+const MAX_QUERY_CHARS = 2_000;
+const MAX_TURN_CHARS = 8_000;
+const MAX_HISTORY_TURNS = 6;
+
+const ChatBody = z.object({
+  query: z.string().trim().min(1, 'Query is required').max(MAX_QUERY_CHARS, `Query must be under ${MAX_QUERY_CHARS} characters`),
+  history: z
+    .array(z.unknown())
+    .optional()
+    .transform((items) =>
+      (items ?? [])
+        .filter(
+          (m): m is { role: 'user' | 'assistant'; content: string } =>
+            !!m &&
+            typeof m === 'object' &&
+            ((m as { role?: unknown }).role === 'user' || (m as { role?: unknown }).role === 'assistant') &&
+            typeof (m as { content?: unknown }).content === 'string',
+        )
+        .slice(-MAX_HISTORY_TURNS)
+        .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_TURN_CHARS) })),
+    ),
+});
 
 export async function POST(request: NextRequest) {
   try {
-    const key = clientKey(request);
-    if (!rateLimit(`fiqh-chat:${key}`, 15, 60)) {
-      return NextResponse.json(
-        { error: 'Too many requests. Please try again in a minute.' },
-        { status: 429 },
-      );
+    if (!rateLimit(`fiqh-chat:${getClientIp(request)}`, 15, 60)) {
+      return tooManyRequests();
     }
 
-    const { query, history } = await request.json();
-
-    if (!query || typeof query !== 'string' || query.trim().length === 0) {
-      return NextResponse.json({ error: 'Query is required' }, { status: 400 });
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'Request body must be a JSON object' }, { status: 400 });
     }
+    const parsed = ChatBody.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid request' }, { status: 400 });
+    }
+    const { query, history } = parsed.data;
 
-    const response = await fiqhChat(
-      query.trim(),
-      Array.isArray(history)
-        ? history.filter(
-            (m: unknown) =>
-              m &&
-              typeof m === 'object' &&
-              'role' in m &&
-              'content' in m &&
-              ((m as { role: string }).role === 'user' || (m as { role: string }).role === 'assistant'),
-          )
-        : [],
-    );
+    const response = await fiqhChat(query, history);
 
     return NextResponse.json({
       answer: response.answer,
@@ -53,7 +63,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: 'Chat request failed',
-        message: errorMessage(error),
+        message: publicErrorMessage(error),
       },
       { status: 500 },
     );

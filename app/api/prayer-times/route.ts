@@ -1,4 +1,4 @@
-import { errorMessage } from '@/lib/errors';
+import { publicErrorMessage } from '@/lib/errors';
 import { NextRequest, NextResponse } from 'next/server';
 
 const ALADHAN_API = 'https://api.aladhan.com/v1';
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: 'Failed to fetch prayer times',
-        message: errorMessage(error),
+        message: publicErrorMessage(error),
       },
       { status: 500 },
     );

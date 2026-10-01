@@ -4,6 +4,7 @@ import { RulingBadge } from '@/app/components/RulingBadge';
 import { formatFatwaDisplay } from '@/lib/fiqh/format-fatwa-display';
 import type { FatwaSource } from '@/lib/fiqh/source-info';
 import type { Fatwa } from '@/lib/fiqh/types';
+import { safeExternalUrl } from '@/lib/validate';
 
 /** "Islamic Laws · Ruling 1731 · View on sistani.org ↗", or a plain warning for generated text. */
 export function SourceAttribution({ source, compact = false }: { source: FatwaSource; compact?: boolean }) {
@@ -22,9 +23,9 @@ export function SourceAttribution({ source, compact = false }: { source: FatwaSo
           {source.reference}
         </span>
       )}
-      {source.url && !compact && (
+      {safeExternalUrl(source.url) && !compact && (
         <a
-          href={source.url}
+          href={safeExternalUrl(source.url)}
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}

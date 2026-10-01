@@ -27,3 +27,14 @@ export function errorMessage(error: unknown): string {
 
   return String(error ?? 'Unknown error');
 }
+
+/**
+ * Error detail safe to put in an API response. Raw database and upstream errors
+ * reveal table names, query shape and hosts, so in production they are logged
+ * server-side and the client only gets the route's generic `error` text.
+ */
+export function publicErrorMessage(error: unknown): string | undefined {
+  if (process.env.NODE_ENV !== 'production') return errorMessage(error);
+  console.error(errorMessage(error));
+  return undefined;
+}

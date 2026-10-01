@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { NarratorChain } from './NarratorChain';
 import { readGrade, summarizeGrades, TONE_LABEL, ungradedNote, type GradeTone } from '@/lib/grading';
+import { safeExternalUrl } from '@/lib/validate';
 
 const TONE_STYLE: Record<GradeTone | 'mixed', string> = {
   authentic: 'border-emerald-400/35 bg-emerald-500/10 text-emerald-300',
@@ -145,9 +146,9 @@ export function CitationModal({ hadith, onClose }: { hadith: Hadith | null; onCl
             </p>
           </section>
 
-          {hadith.sourceUrl && (
+          {safeExternalUrl(hadith.sourceUrl) && (
             <a
-              href={hadith.sourceUrl}
+              href={safeExternalUrl(hadith.sourceUrl)}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-sm font-semibold text-gold-200 hover:underline"

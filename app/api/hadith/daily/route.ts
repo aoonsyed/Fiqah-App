@@ -1,5 +1,6 @@
-import { errorMessage } from '@/lib/errors';
+import { publicErrorMessage } from '@/lib/errors';
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 import { getHadithsByBook } from '@/lib/rag/db';
 
 // Reads the cron secret from request headers, so it can never be prerendered.
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: 'Failed to fetch daily hadith',
-        message: errorMessage(error),
+        message: publicErrorMessage(error),
       },
       { status: 500 },
     );
@@ -46,5 +47,8 @@ export async function GET(request: NextRequest) {
 
 function validateCronSecret(secret: string | null): boolean {
   if (!secret || !process.env.CRON_SECRET) return false;
-  return secret === `Bearer ${process.env.CRON_SECRET}`;
+  // Constant-time compare, so response timing doesn't reveal how much matched.
+  const given = Buffer.from(secret);
+  const expected = Buffer.from(`Bearer ${process.env.CRON_SECRET}`);
+  return given.length === expected.length && timingSafeEqual(given, expected);
 }

@@ -14,6 +14,7 @@ const COLUMNS = [
     links: [
       { href: '/api/health', label: 'API health' },
       { href: '/api/stats', label: 'Corpus stats' },
+      { href: '/privacy', label: 'Privacy policy' },
     ],
   },
 ];

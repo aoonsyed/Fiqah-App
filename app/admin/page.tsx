@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/app/components/AuthProvider';
-import { isAdminEmail } from '@/lib/admin-auth';
+import { useIsAdmin } from '@/app/components/useIsAdmin';
 import { Reveal } from '@/app/components/Reveal';
 
 interface StatsPayload {
@@ -19,11 +18,10 @@ interface StatsPayload {
 }
 
 export default function AdminPage() {
-  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useState<StatsPayload | null>(null);
 
-  const authorized = !!user && isAdminEmail(user.email);
+  const { authorized, checking: authLoading } = useIsAdmin();
 
   useEffect(() => {
     if (!authLoading && !authorized) router.push('/login');

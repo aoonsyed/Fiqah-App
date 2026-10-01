@@ -1,4 +1,4 @@
-import { errorMessage } from '@/lib/errors';
+import { publicErrorMessage } from '@/lib/errors';
 import { listMaraji } from '@/lib/fiqh/db';
 import { NextResponse } from 'next/server';
 
@@ -10,7 +10,7 @@ export async function GET() {
     return NextResponse.json({ maraji });
   } catch (error) {
     return NextResponse.json(
-      { error: 'Failed to load maraji', message: errorMessage(error) },
+      { error: 'Failed to load maraji', message: publicErrorMessage(error) },
       { status: 503 },
     );
   }
