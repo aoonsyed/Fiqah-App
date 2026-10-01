@@ -52,8 +52,8 @@ frontend/
 Thumbs.db
 *.log
 
-# --- local embedding model cache ---
-.cache/models/
+# --- local model cache + data-repair backups ---
+.cache/
 
 import.log
 .import.lock

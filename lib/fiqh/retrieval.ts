@@ -144,7 +144,20 @@ async function retrieveCandidates(
   });
   if (lists.length === 0) throw (settled[0] as PromiseRejectedResult).reason;
 
-  return fuse(lists).slice(0, RERANK_POOL);
+  return fuse(lists)
+    .filter((h) => !looksLikePageChrome(h.questionEn))
+    .slice(0, RERANK_POOL);
+}
+
+/**
+ * Scraped website navigation rather than a masala: a bare page title
+ * ("| … Ofiice") or the site's form/sidebar text. A few imported rows have
+ * nothing else, and showing them reads as a broken result.
+ */
+const PAGE_CHROME = /^\||^Grand Ayatollah Makarem Shirazi's Ofiice$|کدامنیتی|Table of Contents of Risalah|Captcha \(Please enter/;
+
+export function looksLikePageChrome(text: string): boolean {
+  return PAGE_CHROME.test(text.trim());
 }
 
 /** The corpus holds the same question under several ids; results show it once. */

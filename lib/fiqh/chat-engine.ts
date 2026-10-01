@@ -1,6 +1,6 @@
 import { generate, type LLMMessage } from '@/lib/rag/llm';
 import { compareQuestion, getQuestionBySlug } from './db';
-import { smartSearchFiqh } from './retrieval';
+import { looksLikePageChrome, smartSearchFiqh } from './retrieval';
 import type { CompareSummary, Fatwa, FiqhSearchHit, RulingType } from './types';
 
 export interface FiqhCitation {
@@ -73,6 +73,7 @@ export async function fiqhChat(
   ];
 
   for (const { f, hit, detail } of pool) {
+    if (looksLikePageChrome(f.answerEn)) continue;
     n += 1;
     citations.push({
       id: String(n),
