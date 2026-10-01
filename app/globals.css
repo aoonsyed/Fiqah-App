@@ -26,6 +26,9 @@
   --c-gold-400: 224 178 60;
   --c-gold-500: 200 147 42;
 
+  /* Warnings, e.g. text that is not from a published source. */
+  --c-warn: 252 211 77;
+
   /* Text on a gold button, and the sheen/pattern overlays. */
   --on-accent: #05090f;
   --sheen: rgba(239, 205, 107, 0.13);
@@ -58,6 +61,8 @@
   --c-gold-300: 180 131 24;
   --c-gold-400: 202 149 30;
   --c-gold-500: 161 116 20;
+
+  --c-warn: 180 83 9;
 
   --on-accent: #ffffff;
   --sheen: rgba(180, 131, 24, 0.12);

@@ -1,5 +1,7 @@
 import { errorMessage } from '@/lib/errors';
-import { compareQuestion, getCategoryBySlug, getMarjaBySlug } from '@/lib/fiqh/db';
+import { compareQuestion, getCategoryBySlug, getMarjaBySlug, listPublishedFatwaRefs } from '@/lib/fiqh/db';
+import { questionHeading } from '@/lib/fiqh/question-heading';
+import { describeFatwaSource, sourceLine } from '@/lib/fiqh/source-info';
 import { smartSearchFiqh } from '@/lib/fiqh/retrieval';
 import { NextRequest, NextResponse } from 'next/server';
 import { rateLimit } from '@/lib/rate-limit';
@@ -43,24 +45,38 @@ export async function GET(request: NextRequest) {
     const compareTop = searchParams.get('compareTop') === '1';
     const { hits: results } = await smartSearchFiqh(q.trim(), { limit, filterCategoryId, filterMarjaId });
 
-    let topCompare = null;
-    if (compareTop && results[0]) {
-      topCompare = await compareQuestion(results[0].questionSlug);
-    }
+    const [topCompare, published] = await Promise.all([
+      compareTop && results[0] ? compareQuestion(results[0].questionSlug) : null,
+      listPublishedFatwaRefs(results.map((r) => r.questionId)),
+    ]);
 
     return NextResponse.json({
       query: q,
       topCompare,
-      results: results.map((r) => ({
-        id: r.questionId,
-        slug: r.questionSlug,
-        questionEn: r.questionEn,
-        questionAr: r.questionAr,
-        categorySlug: r.categorySlug,
-        subcategorySlug: r.subcategorySlug,
-        marjaCount: r.marjaCount,
-        topRulingType: r.topRulingType,
-      })),
+      results: results.map((r) => {
+        const sources = published
+          .filter((p) => p.questionId === r.questionId)
+          .map((p) => {
+            const source = describeFatwaSource(p.evidenceRefs, p.answerStart);
+            return { marja: p.marjaName, source: sourceLine(source), site: source.site };
+          });
+        const { label, heading } = questionHeading(r.questionEn);
+        return {
+          id: r.questionId,
+          slug: r.questionSlug,
+          questionEn: r.questionEn,
+          label,
+          heading,
+          sources,
+          /** Answers that are generated placeholder text, not published rulings. */
+          unpublishedCount: Math.max(0, r.marjaCount - sources.length),
+          questionAr: r.questionAr,
+          categorySlug: r.categorySlug,
+          subcategorySlug: r.subcategorySlug,
+          marjaCount: r.marjaCount,
+          topRulingType: r.topRulingType,
+        };
+      }),
       count: results.length,
     });
   } catch (error) {

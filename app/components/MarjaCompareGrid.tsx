@@ -2,9 +2,11 @@
 
 import Link from 'next/link';
 import { useCallback, useMemo, useState } from 'react';
-import { FatwaAnswerBody } from '@/app/components/FatwaAnswerBody';
+import { FatwaAnswerBody, SourceAttribution } from '@/app/components/FatwaAnswerBody';
 import { RulingBadge } from '@/app/components/RulingBadge';
 import { formatFatwaDisplay } from '@/lib/fiqh/format-fatwa-display';
+import { questionHeading } from '@/lib/fiqh/question-heading';
+import { describeFatwaSource } from '@/lib/fiqh/source-info';
 import type { CompareSummary, Fatwa, RulingType } from '@/lib/fiqh/types';
 
 const RULING_FILTER_LABEL: Record<RulingType, string> = {
@@ -70,11 +72,11 @@ function FatwaCard({
           </span>
           <div className="min-w-0 flex-1">
             <h3 className="text-sm font-semibold leading-snug text-white">{name}</h3>
+            <div className="mt-1">
+              <SourceAttribution source={display.source} compact />
+            </div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <RulingBadge type={display.displayRuling} />
-              {display.rulingIsPlaceholder && (
-                <span className="text-[10px] uppercase tracking-wider text-amber-200/60">Aligned</span>
-              )}
               {!expanded && (
                 <span className="text-[10px] uppercase tracking-wider text-white/35">Tap to open</span>
               )}
@@ -92,14 +94,11 @@ function FatwaCard({
             <FatwaAnswerBody fatwa={fatwa} questionEn={questionEn} expanded hideRulingRow />
           </div>
         ) : (
-          <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-emerald-100/75">{display.rulingText}</p>
+          <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-white/70">{display.rulingText}</p>
         )}
       </button>
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.06] px-5 py-3">
-        {fatwa.marja?.slug && (
-          <p className="text-[10px] uppercase tracking-wider text-white/30">{fatwa.marja.slug}</p>
-        )}
         <div className="ml-auto flex flex-wrap gap-2">
           {canPin && (
             <button
@@ -163,6 +162,9 @@ function SideBySidePanel({
               <h4 className="text-sm font-semibold text-white">{f.marja?.nameEn}</h4>
               <RulingBadge type={i === 0 ? da.displayRuling : db.displayRuling} />
             </div>
+            <div className="mt-1">
+              <SourceAttribution source={i === 0 ? da.source : db.source} compact />
+            </div>
             <p className="mt-3 max-h-64 overflow-y-auto text-sm leading-relaxed text-white/65">
               {i === 0 ? da.rulingText : db.rulingText}
             </p>
@@ -188,14 +190,20 @@ export function MarjaCompareGrid({
   hideQuestionTitle?: boolean;
 }) {
   const { question, fatwas, agreement } = data;
+  const heading = useMemo(() => questionHeading(question.questionEn), [question.questionEn]);
   const [showAllCards, setShowAllCards] = useState(!maxCards);
   const [rulingFilter, setRulingFilter] = useState<RulingType | 'all'>('all');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
 
   const filtered = useMemo(() => {
-    if (rulingFilter === 'all') return fatwas;
-    return fatwas.filter((f) => formatFatwaDisplay(f, question.questionEn).displayRuling === rulingFilter);
+    // Published rulings before generated placeholder text.
+    const ordered = [...fatwas].sort(
+      (a, b) =>
+        Number(describeFatwaSource(b.evidenceRefs).verified) - Number(describeFatwaSource(a.evidenceRefs).verified),
+    );
+    if (rulingFilter === 'all') return ordered;
+    return ordered.filter((f) => formatFatwaDisplay(f, question.questionEn).displayRuling === rulingFilter);
   }, [fatwas, rulingFilter, question.questionEn]);
 
   const displayList = useMemo(() => {
@@ -251,7 +259,16 @@ export function MarjaCompareGrid({
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold-300/90">{title}</p>
           {!hideQuestionTitle && (
-            <h2 className="mt-2 font-display text-lg font-bold text-white sm:text-xl">{question.questionEn}</h2>
+            <>
+              {heading.label && (
+                <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                  {heading.label}
+                </p>
+              )}
+              <h2 dir="auto" className="mt-1 font-display text-lg font-bold text-white sm:text-xl">
+                {heading.heading}
+              </h2>
+            </>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">

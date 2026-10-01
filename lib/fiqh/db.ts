@@ -262,6 +262,35 @@ export async function listFatwasForQuestion(questionId: string): Promise<Fatwa[]
   return (data as FatwaRow[]).map(fatwaFromRow);
 }
 
+export interface PublishedFatwaRef {
+  questionId: string;
+  marjaName: string;
+  evidenceRefs: unknown[];
+  /** Opening of the answer; enough for a risalah issue number. */
+  answerStart: string;
+}
+
+/** Fatwas imported from a published source (not generated text) for the given questions. */
+export async function listPublishedFatwaRefs(questionIds: string[]): Promise<PublishedFatwaRef[]> {
+  if (questionIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from('fatwas')
+    .select('question_id, evidence_refs, answer_en, maraji(name_en)')
+    .in('question_id', questionIds)
+    .eq('evidence_refs->0->>type', 'url');
+  if (error) throw error;
+
+  return (data ?? []).map((r) => {
+    const marja = r.maraji as unknown as { name_en: string } | { name_en: string }[] | null;
+    return {
+      questionId: r.question_id as string,
+      marjaName: (Array.isArray(marja) ? marja[0]?.name_en : marja?.name_en) ?? 'Marja',
+      evidenceRefs: Array.isArray(r.evidence_refs) ? r.evidence_refs : [],
+      answerStart: (r.answer_en as string).slice(0, 80),
+    };
+  });
+}
+
 export async function compareQuestion(slug: string): Promise<CompareSummary | null> {
   const question = await getQuestionBySlug(slug);
   if (!question) return null;

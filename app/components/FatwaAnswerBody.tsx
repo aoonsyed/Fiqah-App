@@ -1,9 +1,41 @@
 'use client';
 
-import Link from 'next/link';
 import { RulingBadge } from '@/app/components/RulingBadge';
 import { formatFatwaDisplay } from '@/lib/fiqh/format-fatwa-display';
+import type { FatwaSource } from '@/lib/fiqh/source-info';
 import type { Fatwa } from '@/lib/fiqh/types';
+
+/** "Islamic Laws · Ruling 1731 · View on sistani.org ↗", or a plain warning for generated text. */
+export function SourceAttribution({ source, compact = false }: { source: FatwaSource; compact?: boolean }) {
+  if (!source.verified) {
+    return (
+      <span className={`text-warn ${compact ? 'text-[11px]' : 'text-xs'}`} title={source.title}>
+        ⚠ {compact ? 'Not a published ruling' : source.title}
+      </span>
+    );
+  }
+  return (
+    <span className={`inline-flex flex-wrap items-center gap-x-2 gap-y-1 ${compact ? 'text-[11px]' : 'text-xs'}`}>
+      <span className="font-medium text-emerald-350">{source.title}</span>
+      {source.reference && (
+        <span className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-[11px] text-gold-200/90">
+          {source.reference}
+        </span>
+      )}
+      {source.url && !compact && (
+        <a
+          href={source.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="text-gold-200 hover:underline"
+        >
+          View on {source.site ?? 'official site'} ↗
+        </a>
+      )}
+    </span>
+  );
+}
 
 export function FatwaAnswerBody({
   fatwa,
@@ -21,67 +53,58 @@ export function FatwaAnswerBody({
   const d = formatFatwaDisplay(fatwa, questionEn);
   const s = d.structured;
   const name = fatwa.marja?.nameEn ?? 'Marja';
-  const displayQuestion = s.questionText ?? questionEn ?? null;
+  // The summary is the answer's first sentence; show the rest after it rather than repeating it.
+  const rest = s.answerText.includes(s.hukmSummary)
+    ? s.answerText.slice(s.answerText.indexOf(s.hukmSummary) + s.hukmSummary.length).trim()
+    : s.answerText;
 
   return (
     <div className="space-y-4">
       {showMarjaHeader && (
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="font-semibold text-white">{name}</h2>
-          <RulingBadge type={d.displayRuling} />
-          {d.rulingIsPlaceholder && (
-            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-100/90 ring-1 ring-amber-400/30">
-              Awaiting official import
-            </span>
-          )}
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-semibold text-white">{name}</h2>
+            <RulingBadge type={d.displayRuling} />
+          </div>
+          <div className="mt-1.5">
+            <SourceAttribution source={d.source} />
+          </div>
         </div>
       )}
 
       {!showMarjaHeader && !hideRulingRow && (
         <div className="flex flex-wrap items-center gap-2">
           <RulingBadge type={d.displayRuling} />
-          {d.rulingIsPlaceholder && d.kind === 'comparative_seed' && (
-            <span className="text-[10px] uppercase tracking-wider text-amber-200/70">Aligned corpus text</span>
-          )}
         </div>
       )}
 
-      {expanded && displayQuestion && (
+      {expanded && s.questionText && (
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">Question (masala)</p>
-          <p className="mt-2 text-sm leading-relaxed text-white/75">{displayQuestion}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">Question</p>
+          <p className="mt-2 text-sm leading-relaxed text-white/75">{s.questionText}</p>
         </div>
       )}
 
       <div
-        className={`rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/50 to-emerald-950/20 p-5 ${
-          expanded ? '' : 'line-clamp-4'
-        }`}
+        className={`rounded-xl border p-5 ${
+          d.source.verified
+            ? 'border-emerald-500/30 bg-gradient-to-br from-emerald-950/50 to-emerald-950/20'
+            : 'border-warn/25 bg-warn/[0.04]'
+        } ${expanded ? '' : 'line-clamp-4'}`}
       >
-        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-300/90">
-          {d.kind === 'imported' ? 'Hukm — published answer' : 'Ruling & explanation'}
+        <p
+          className={`text-[10px] font-semibold uppercase tracking-[0.12em] ${
+            d.source.verified ? 'text-emerald-350' : 'text-warn'
+          }`}
+        >
+          {d.source.verified ? `Ruling of ${name}` : 'Placeholder text, not a published ruling'}
         </p>
         <p className="mt-3 font-display text-base font-semibold leading-snug text-white sm:text-lg">
           {s.hukmSummary}
         </p>
-        {expanded && s.answerText !== s.hukmSummary && (
-          <p className="mt-4 text-sm leading-relaxed text-white/80">{s.answerText}</p>
-        )}
-        {!expanded && s.answerText.length > s.hukmSummary.length && (
-          <p className="mt-2 text-xs text-white/40">Tap to open full ruling</p>
-        )}
+        {expanded && rest && <p className="mt-3 text-sm leading-relaxed text-white/80">{rest}</p>}
+        {!expanded && rest && <p className="mt-2 text-xs text-white/40">Tap to open full ruling</p>}
       </div>
-
-      {expanded && s.keyPoints.length > 1 && (
-        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">Points from the answer</p>
-          <ul className="mt-3 list-inside list-disc space-y-2 text-sm text-white/70">
-            {s.keyPoints.map((pt) => (
-              <li key={pt.slice(0, 48)}>{pt}</li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       {expanded && s.exceptions.length > 0 && (
         <div className="rounded-xl border border-sky-500/25 bg-sky-950/30 p-4">
@@ -96,31 +119,15 @@ export function FatwaAnswerBody({
 
       {expanded && fatwa.conditionsEn && (
         <p className="rounded-lg border border-white/10 bg-white/[0.03] p-3 text-xs text-white/55">
-          <span className="font-semibold text-white/70">Additional conditions (corpus): </span>
+          <span className="font-semibold text-white/70">Conditions: </span>
           {fatwa.conditionsEn}
         </p>
       )}
 
-      {expanded && d.kind === 'imported' && s.isBriefOfficial && (
-        <p className="text-xs leading-relaxed text-white/45">
-          This is the complete English text from the marja&apos;s published istifta&apos; collection for this
-          question. Practical Laws entries are often one or two sentences; the hukm above is the full official
-          wording, not a summary.
-        </p>
-      )}
-
-      {expanded && s.source && (
+      {expanded && !showMarjaHeader && (
         <div className="flex flex-wrap items-center gap-2 text-xs text-white/50">
           <span className="font-semibold text-white/60">Source:</span>
-          <span>{s.source.title}</span>
-          {s.source.number && (
-            <span className="rounded bg-white/[0.06] px-2 py-0.5 font-mono text-[11px] text-gold-200/90">
-              {s.source.number}
-            </span>
-          )}
-          <Link href={s.source.url} target="_blank" rel="noopener noreferrer" className="text-gold-200 hover:underline">
-            View on official site →
-          </Link>
+          <SourceAttribution source={d.source} />
         </div>
       )}
 
@@ -133,7 +140,7 @@ export function FatwaAnswerBody({
       )}
 
       {expanded && d.disclaimer && (
-        <p className="rounded-lg border border-amber-500/20 bg-amber-500/[0.06] p-3 text-xs leading-relaxed text-amber-100/75">
+        <p className="rounded-lg border border-warn/25 bg-warn/[0.06] p-3 text-xs leading-relaxed text-warn">
           {d.disclaimer}
         </p>
       )}

@@ -4,14 +4,21 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { Reveal } from '@/app/components/Reveal';
-import { FatwaAnswerBody } from '@/app/components/FatwaAnswerBody';
+import { FatwaAnswerBody, SourceAttribution } from '@/app/components/FatwaAnswerBody';
 import { MarjaCompareGrid } from '@/app/components/MarjaCompareGrid';
 import {
   formatFatwaDisplay,
   pickPrimaryOfficialFatwa,
   type FatwaCorpusKind,
 } from '@/lib/fiqh/format-fatwa-display';
+import { questionHeading } from '@/lib/fiqh/question-heading';
 import type { CompareSummary, Fatwa, FiqhQuestion } from '@/lib/fiqh/types';
+
+/** "usul-principles" → "Usul principles" */
+function categoryLabel(slug: string): string {
+  const words = slug.replace(/-/g, ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
 
 function corpusKind(refs: unknown[]): FatwaCorpusKind {
   const t = (refs[0] as { type?: string } | undefined)?.type;
@@ -62,6 +69,7 @@ export default function FiqhQuestionPage() {
 
   const primary = useMemo(() => pickPrimaryOfficialFatwa(fatwas), [fatwas]);
   const primaryDisplay = primary && question ? formatFatwaDisplay(primary, question.questionEn) : null;
+  const heading = useMemo(() => (question ? questionHeading(question.questionEn) : null), [question]);
 
   const compareData: CompareSummary | null = useMemo(() => {
     if (!question || fatwas.length === 0) return null;
@@ -102,11 +110,38 @@ export default function FiqhQuestionPage() {
         <>
           <Reveal>
             <Link href={`/topics/${question.categorySlug ?? 'worship'}`} className="text-sm text-gold-200 hover:underline">
-              ← {question.categorySlug}
+              ← {categoryLabel(question.categorySlug ?? 'worship')}
             </Link>
-            <h1 className="mt-6 font-display text-2xl font-bold leading-snug text-white sm:text-3xl">
-              {question.questionEn}
+            {heading?.label && (
+              <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-300/90">{heading.label}</p>
+            )}
+            <h1
+              dir="auto"
+              className={`font-display font-bold leading-snug text-white ${heading?.label ? 'mt-2' : 'mt-6'} ${
+                (heading?.heading.length ?? 0) > 100 ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-3xl'
+              }`}
+            >
+              {heading?.heading ?? question.questionEn}
             </h1>
+            {primaryDisplay && primary ? (
+              <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-white/60">
+                <span>
+                  Ruling of <span className="font-semibold text-white">{primary.marja?.nameEn ?? 'the marja'}</span>
+                </span>
+                <span className="text-white/25">·</span>
+                <SourceAttribution source={primaryDisplay.source} />
+              </p>
+            ) : (
+              fatwas.length > 0 && (
+                <p className="mt-4 rounded-lg border border-warn/25 bg-warn/[0.06] p-3 text-sm text-warn">
+                  No published ruling is in the library for this question yet. The answers below are generated
+                  placeholder text, not taken from any marja&apos;s books — check your marja&apos;s risalah.
+                </p>
+              )
+            )}
+            {!primary && heading && heading.heading !== question.questionEn && (
+              <p className="mt-4 leading-relaxed text-white/70">{question.questionEn}</p>
+            )}
             {question.questionAr && (
               <p className="mt-4 text-lg text-white/55" dir="rtl" lang="ar">
                 {question.questionAr}
@@ -117,25 +152,19 @@ export default function FiqhQuestionPage() {
           {primaryDisplay && primary && (
             <Reveal delay={40}>
               <section className="card mt-10 border-gold-300/25 p-6 sm:p-8">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold-300/90">
-                  Official ruling (corpus)
-                </p>
-                <p className="mt-2 text-sm text-white/50">
-                  {primary.marja?.nameEn} — verified import. Other maraji below are expanded or aligned until their texts
-                  are imported.
-                </p>
-                <div className="mt-5">
-                  <FatwaAnswerBody fatwa={primary} questionEn={question.questionEn} showMarjaHeader />
+                <div>
+                  <FatwaAnswerBody fatwa={primary} questionEn={question.questionEn} />
                 </div>
               </section>
             </Reveal>
           )}
 
-          {compareData && (
+          {/* With a single answer the grid would only repeat the ruling above. */}
+          {compareData && !(fatwas.length === 1 && primary) && (
             <Reveal delay={60}>
               <p className="mt-10 text-sm text-white/45">
-                Open any card for the full ruling text. Green highlight = hukm to follow; seeded maraji show aligned
-                corpus text until their official answers are imported.
+                Each card names its source. Cards marked &ldquo;Not a published ruling&rdquo; hold generated
+                placeholder text, not that marja&apos;s ruling.
               </p>
               <MarjaCompareGrid data={compareData} title="Compare all maraji" hideQuestionTitle />
             </Reveal>

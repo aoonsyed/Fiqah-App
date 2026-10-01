@@ -36,6 +36,7 @@ const config: Config = {
           400: 'rgb(var(--c-gold-400) / <alpha-value>)',
           500: 'rgb(var(--c-gold-500) / <alpha-value>)',
         },
+        warn: 'rgb(var(--c-warn) / <alpha-value>)',
       },
       fontFamily: {
         display: ['Fraunces', 'Georgia', 'serif'],

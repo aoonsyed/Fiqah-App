@@ -16,6 +16,16 @@ interface SearchHit {
   subcategorySlug: string;
   marjaCount: number;
   topRulingType: RulingType | null;
+  /** "Ruling 1731" when the stored question is risalah ruling text. */
+  label: string | null;
+  heading: string;
+  sources: Array<{ marja: string; source: string; site: string | null }>;
+  unpublishedCount: number;
+}
+
+function categoryLabel(slug: string): string {
+  const words = slug.replace(/-/g, ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 function SearchInner() {
@@ -101,9 +111,33 @@ function SearchInner() {
         {results.map((r) => (
           <li key={r.id}>
             <Link href={`/masail/${r.slug}`} className="card block p-5 hover:border-gold-300/35">
-              <p className="font-medium text-white">{r.questionEn}</p>
+              {r.label && (
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gold-300/80">{r.label}</p>
+              )}
+              <p dir="auto" className={`font-medium text-white ${r.label ? 'mt-1' : ''}`}>
+                {r.heading}
+              </p>
+              {r.sources.length > 0 ? (
+                <ul className="mt-3 space-y-1">
+                  {r.sources.map((src) => (
+                    <li key={`${src.marja}-${src.source}`} className="text-xs text-white/60">
+                      <span className="font-semibold text-white/80">{src.marja}</span>
+                      <span className="text-white/30"> · </span>
+                      <span className="text-emerald-350">{src.source}</span>
+                      {src.site && <span className="text-white/35"> ({src.site})</span>}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-3 text-xs text-warn">
+                  ⚠ No published ruling yet — only generated placeholder answers
+                </p>
+              )}
               <p className="mt-2 text-xs text-white/40">
-                {r.categorySlug} / {r.subcategorySlug} · {r.marjaCount} marja answers
+                {categoryLabel(r.categorySlug)}
+                {r.sources.length > 0 && r.unpublishedCount > 0 && (
+                  <> · {r.unpublishedCount} more generated placeholder answer{r.unpublishedCount === 1 ? '' : 's'}</>
+                )}
               </p>
               {r.topRulingType && (
                 <div className="mt-3">

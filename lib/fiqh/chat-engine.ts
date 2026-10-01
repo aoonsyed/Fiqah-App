@@ -1,6 +1,7 @@
 import { generate, type LLMMessage } from '@/lib/rag/llm';
 import { compareQuestion, getQuestionBySlug } from './db';
 import { looksLikePageChrome, smartSearchFiqh } from './retrieval';
+import { describeFatwaSource, sourceLine } from './source-info';
 import type { CompareSummary, Fatwa, FiqhSearchHit, RulingType } from './types';
 
 export interface FiqhCitation {
@@ -12,6 +13,11 @@ export interface FiqhCitation {
   subcategorySlug: string;
   rulingType: RulingType;
   excerpt: string;
+  /** "Islamic Laws · Ruling 1731", or a warning for generated text. */
+  source: string;
+  sourceUrl: string | null;
+  /** False for generated placeholder text that no marja published. */
+  verified: boolean;
 }
 
 export interface FiqhChatResponse {
@@ -30,11 +36,21 @@ Rules:
 3. This is informational, not a personal religious ruling — tell the user to follow their marja.
 4. Do not cite hadith collections or narrations unless an excerpt explicitly mentions them.
 5. If excerpts do not cover the question, say so and suggest browsing related topics.
-6. Reply in the language the user wrote in. Some excerpts are in Persian or Arabic; translate what you use.`;
+6. Reply in the language the user wrote in. Some excerpts are in Persian or Arabic; translate what you use.
+7. Each excerpt names its source. When you state a ruling, say whose it is and which book it is from (e.g. "Ayatollah Sistani, Islamic Laws, Ruling 1731").
+8. An excerpt marked UNVERIFIED is generated placeholder text, not a published ruling. Never present it as a marja's view; if you mention it, say it is unverified.`;
 
 /** Fatwas per supporting question, after the best match's full set. */
 const SUPPORTING_FATWAS = 3;
 const MAX_CITATIONS = 16;
+
+function isPublished(f: Fatwa): boolean {
+  return describeFatwaSource(f.evidenceRefs).verified;
+}
+
+function publishedFirst(fatwas: Fatwa[]): Fatwa[] {
+  return [...fatwas].sort((a, b) => Number(isPublished(b)) - Number(isPublished(a)));
+}
 
 export async function fiqhChat(
   query: string,
@@ -65,15 +81,22 @@ export async function fiqhChat(
   // The best match's full marja comparison first, then a few fatwas from the
   // next matches so a narrow top hit doesn't leave the answer uncovered.
   const supporting = await Promise.all(hits.slice(1, 3).map((h) => compareQuestion(h.questionSlug)));
-  const pool: Array<{ f: Fatwa; hit: FiqhSearchHit; detail: CompareSummary }> = [
-    ...(primaryCompare?.fatwas ?? []).map((f) => ({ f, hit: hits[0]!, detail: primaryCompare! })),
+  const allCandidates: Array<{ f: Fatwa; hit: FiqhSearchHit; detail: CompareSummary }> = [
+    ...(primaryCompare ? publishedFirst(primaryCompare.fatwas) : []).map((f) => ({
+      f,
+      hit: hits[0]!,
+      detail: primaryCompare!,
+    })),
     ...supporting.flatMap((d, i) =>
-      d ? d.fatwas.slice(0, SUPPORTING_FATWAS).map((f) => ({ f, hit: hits[i + 1]!, detail: d })) : [],
+      d ? publishedFirst(d.fatwas).slice(0, SUPPORTING_FATWAS).map((f) => ({ f, hit: hits[i + 1]!, detail: d })) : [],
     ),
-  ];
+  ].filter(({ f }) => !looksLikePageChrome(f.answerEn));
+  // Generated placeholder text only reaches the model when nothing published matched.
+  const published = allCandidates.filter(({ f }) => isPublished(f));
+  const pool = published.length > 0 ? published : allCandidates;
 
   for (const { f, hit, detail } of pool) {
-    if (looksLikePageChrome(f.answerEn)) continue;
+    const source = describeFatwaSource(f.evidenceRefs, f.answerEn);
     n += 1;
     citations.push({
       id: String(n),
@@ -84,6 +107,9 @@ export async function fiqhChat(
       subcategorySlug: hit.subcategorySlug,
       rulingType: f.rulingType,
       excerpt: f.answerEn.slice(0, 600),
+      source: sourceLine(source),
+      sourceUrl: source.url,
+      verified: source.verified,
     });
     if (n >= MAX_CITATIONS) break;
   }
@@ -104,7 +130,9 @@ export async function fiqhChat(
   const context = citations
     .map(
       (c, i) =>
-        `[${i + 1}] ${c.marjaName} (${c.rulingType}) — ${c.categorySlug}/${c.subcategorySlug}\n` +
+        `[${i + 1}] ${c.marjaName} — ${
+          c.verified ? `Source: ${c.source}` : 'UNVERIFIED: generated placeholder text, not a published ruling'
+        } (${c.rulingType})\n` +
         `Question: ${c.questionEn}\nAnswer excerpt: ${c.excerpt}`,
     )
     .join('\n\n');

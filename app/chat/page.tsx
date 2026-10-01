@@ -24,6 +24,8 @@ interface FiqhCitation {
   categorySlug?: string;
   subcategorySlug?: string;
   rulingType?: RulingType;
+  source?: string;
+  verified?: boolean;
 }
 
 const SUGGESTIONS = [

@@ -13,6 +13,9 @@ interface Citation {
   categorySlug?: string;
   subcategorySlug?: string;
   rulingType?: RulingType;
+  /** "Islamic Laws · Ruling 1731", or a warning for generated text. */
+  source?: string;
+  verified?: boolean;
 }
 
 interface ChatMessageProps {
@@ -94,11 +97,16 @@ export function ChatMessage({ role, content, citations = [], onCitationClick }: 
                         </span>
                         {cit.rulingType && <RulingBadge type={cit.rulingType} />}
                       </span>
-                      <span className="block truncate text-[11px] text-white/40">
-                        {cit.categorySlug && cit.subcategorySlug
-                          ? `${cit.categorySlug} / ${cit.subcategorySlug}`
-                          : cit.questionEn}
-                      </span>
+                      {cit.source && (
+                        <span
+                          className={`block truncate text-[11px] ${
+                            cit.verified ? 'text-emerald-350' : 'text-warn'
+                          }`}
+                        >
+                          {cit.verified ? cit.source : `⚠ ${cit.source}`}
+                        </span>
+                      )}
+                      <span className="block truncate text-[11px] text-white/40">{cit.questionEn}</span>
                     </span>
                     <svg
                       viewBox="0 0 24 24"

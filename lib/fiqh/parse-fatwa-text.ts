@@ -1,10 +1,6 @@
+import { stripRulingLabel } from './question-heading';
+import { describeFatwaSource, type FatwaSource } from './source-info';
 import type { RulingType } from './types';
-
-export interface EvidenceRef {
-  type?: string;
-  url?: string;
-  number?: string | number;
-}
 
 export interface StructuredRuling {
   questionText: string | null;
@@ -12,19 +8,14 @@ export interface StructuredRuling {
   /** First sentence — the direct hukm when possible. */
   hukmSummary: string;
   exceptions: string[];
-  keyPoints: string[];
-  source: { url: string; number: string; title: string } | null;
-  /** Imported text that is complete but concise (typical of istifta books). */
-  isBriefOfficial: boolean;
+  /** Published book or site the text was imported from; null for generated text. */
+  source: FatwaSource | null;
 }
-
-const SOURCE_TITLES: Record<string, string> = {
-  'leader.ir': 'Practical Laws of Islam — Ajwibat al-Istiftāʾāt (English)',
-};
 
 function sentences(text: string): string[] {
   return text
-    .split(/(?<=[.!?])\s+/)
+    // Not after a list marker ("as follows: 1. smelling…") — that dot doesn't end a sentence.
+    .split(/(?<=[.!?])(?<!(?:^|\s)\d{1,2}\.)\s+/)
     .map((s) => s.trim())
     .filter((s) => s.length > 8);
 }
@@ -69,23 +60,9 @@ function extractUnlessClauses(answer: string): string[] {
   return out;
 }
 
-function keyPointsFromAnswer(answer: string, exceptions: string[]): string[] {
-  const pts = sentences(answer).filter((s) => !/^unless\b/i.test(s));
-  if (pts.length <= 1) return pts;
-  return pts;
-}
-
-function parseSource(evidenceRefs: unknown[]): StructuredRuling['source'] {
-  const ref = (evidenceRefs[0] ?? {}) as EvidenceRef;
-  if (ref.type === 'url' && ref.url) {
-    const num = ref.number != null ? String(ref.number) : '';
-    let title = 'Official published source';
-    for (const [host, label] of Object.entries(SOURCE_TITLES)) {
-      if (ref.url.includes(host)) title = label;
-    }
-    return { url: ref.url, number: num, title };
-  }
-  return null;
+function verifiedSource(evidenceRefs: unknown[], answer: string): FatwaSource | null {
+  const source = describeFatwaSource(evidenceRefs, answer);
+  return source.verified ? source : null;
 }
 
 export function structureRulingDisplay(
@@ -97,23 +74,23 @@ export function structureRulingDisplay(
     imported?: boolean;
   } = {},
 ): StructuredRuling {
-  const { questionText, answerText } = splitQuestionAndAnswer(rawAnswer, options.questionEn);
-  const cleanAnswer = answerText.replace(/\s+/g, ' ').trim();
+  const split = splitQuestionAndAnswer(rawAnswer, options.questionEn);
+  const cleanAnswer = split.answerText.replace(/\s+/g, ' ').trim();
+  // Risalah rows store the ruling as both question and answer; show it once.
+  const questionText =
+    split.questionText && split.questionText.replace(/\s+/g, ' ').trim() !== cleanAnswer ? split.questionText : null;
   const exceptions = extractUnlessClauses(cleanAnswer);
-  const keyPoints = keyPointsFromAnswer(cleanAnswer, exceptions);
-  const firstSentence = sentences(cleanAnswer)[0] ?? cleanAnswer;
-  const hukmSummary =
-    firstSentence.length > 20 ? firstSentence : cleanAnswer.slice(0, 280) + (cleanAnswer.length > 280 ? '…' : '');
+  // "Ruling 1731." would otherwise be taken as the first sentence.
+  const body = stripRulingLabel(cleanAnswer);
+  const firstSentence = sentences(body)[0] ?? body;
+  const hukmSummary = firstSentence.length > 20 ? firstSentence : body.slice(0, 280) + (body.length > 280 ? '…' : '');
 
-  const isBriefOfficial = Boolean(options.imported && cleanAnswer.length < 520);
 
   return {
     questionText,
     answerText: cleanAnswer,
     hukmSummary,
     exceptions,
-    keyPoints,
-    source: parseSource(options.evidenceRefs ?? []),
-    isBriefOfficial,
+    source: verifiedSource(options.evidenceRefs ?? [], cleanAnswer),
   };
 }

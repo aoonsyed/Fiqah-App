@@ -1,5 +1,6 @@
 import { inferRulingType } from '@/lib/fiqh/ruling-infer';
 import { structureRulingDisplay, type StructuredRuling } from '@/lib/fiqh/parse-fatwa-text';
+import { describeFatwaSource, type FatwaSource } from '@/lib/fiqh/source-info';
 import type { Fatwa, RulingType } from '@/lib/fiqh/types';
 
 export type { StructuredRuling };
@@ -8,6 +9,8 @@ export type FatwaCorpusKind = 'imported' | 'comparative_seed' | 'generated_corpu
 
 export interface FatwaDisplay {
   kind: FatwaCorpusKind;
+  /** Book/site the text comes from, or an explicit "not published" marker. */
+  source: FatwaSource;
   /** Primary text the user should read (ruling / explanation). */
   rulingText: string;
   structured: StructuredRuling;
@@ -66,6 +69,7 @@ function parseComparativeAnswer(answerEn: string): {
 export function formatFatwaDisplay(fatwa: Fatwa, questionEn?: string | null): FatwaDisplay {
   const kind = corpusKind(fatwa.evidenceRefs ?? []);
   const storedRuling = fatwa.rulingType;
+  const source = describeFatwaSource(fatwa.evidenceRefs, fatwa.answerEn);
 
   if (kind === 'imported') {
     const structured = structureRulingDisplay(fatwa.answerEn, {
@@ -81,6 +85,7 @@ export function formatFatwaDisplay(fatwa: Fatwa, questionEn?: string | null): Fa
         : storedRuling;
     return {
       kind,
+      source,
       rulingText,
       structured,
       displayRuling,
@@ -101,6 +106,7 @@ export function formatFatwaDisplay(fatwa: Fatwa, questionEn?: string | null): Fa
     const structured = structureRulingDisplay(rulingText, { questionEn, imported: false });
     return {
       kind,
+      source,
       rulingText,
       structured,
       displayRuling,
@@ -118,6 +124,7 @@ export function formatFatwaDisplay(fatwa: Fatwa, questionEn?: string | null): Fa
   const structured = structureRulingDisplay(rulingText, { questionEn, imported: false });
   return {
     kind,
+    source,
     rulingText,
     structured,
     displayRuling: storedRuling,
@@ -126,7 +133,7 @@ export function formatFatwaDisplay(fatwa: Fatwa, questionEn?: string | null): Fa
     marjaContext: null,
     sourceNote: null,
     disclaimer:
-      'Structured placeholder entry — replace with verified text from the marjaʿ’s published rulings.',
+      `This text was generated to fill the comparison. It is not taken from ${fatwa.marja?.nameEn ?? 'this marjaʿ'}’s published rulings, so do not act on it — check their risalah or office.`,
   };
 }
 
