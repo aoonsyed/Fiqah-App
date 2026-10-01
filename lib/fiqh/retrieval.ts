@@ -1,6 +1,6 @@
 import { embedQuery } from '@/lib/rag/embedder';
 import { generateJSON, RERANK_MODEL, type LLMMessage } from '@/lib/rag/llm';
-import { matchFiqhQuestions, searchFiqh } from './db';
+import { listPublishedFatwaRefs, matchFiqhQuestions, searchFiqh } from './db';
 import type { FiqhSearchHit } from './types';
 
 /**
@@ -26,6 +26,12 @@ export interface QueryUnderstanding {
   searchQuery: string;
   /** Terms a matching question would contain, for keyword search. */
   keywords: string[];
+  /**
+   * The few words that distinguish this question ("anal", "shrimp"). Searched
+   * on their own so a long ruling that mentions them once isn't outranked by
+   * the many rulings sharing only common words like "wife" or "prayer".
+   */
+  specificTerms: string[];
 }
 
 export interface SmartSearchOptions {
@@ -45,7 +51,11 @@ const PER_SEARCH = 30;
 /** Fused candidates shown to the reranker. */
 const RERANK_POOL = 30;
 /** Enough of a question to judge its topic without bloating the prompt. */
-const RERANK_EXCERPT_CHARS = 350;
+const RERANK_EXCERPT_CHARS = 450;
+/** Opening kept before the query-matching passage of a long candidate. */
+const RERANK_HEAD_CHARS = 150;
+/** Too common in fiqh text to locate the relevant passage. */
+const GENERIC_TERMS = new Set(['ruling', 'shia', 'fiqh', 'islam', 'islamic', 'what', 'according', 'permissible', 'allowed', 'with', 'from', 'that', 'this', 'about']);
 /** Earlier turns rarely change what a follow-up refers to. */
 const HISTORY_TURNS = 6;
 const HISTORY_TURN_CHARS = 500;
@@ -66,11 +76,29 @@ export async function smartSearchFiqh(
 
   try {
     const hits = await rerank(query, understanding, pool, limit);
-    return { hits, understanding };
+    return { hits: await publishedFirst(hits), understanding };
   } catch (error) {
     // Reranking only improves precision; fused order is a usable fallback.
     console.error('Fiqh rerank failed, using fused order:', error);
     return { hits: pool.slice(0, limit), understanding };
+  }
+}
+
+/**
+ * Relevant questions with a published ruling come before ones that only have
+ * generated placeholder answers, even when the placeholder question matches
+ * the wording more closely: its answers aren't any marja's ruling.
+ */
+async function publishedFirst(hits: FiqhSearchHit[]): Promise<FiqhSearchHit[]> {
+  try {
+    const published = new Set((await listPublishedFatwaRefs(hits.map((h) => h.questionId))).map((r) => r.questionId));
+    // Array.prototype.sort is stable, so the reranker's order holds within each group.
+    return [...hits].sort(
+      (a, b) => Number(published.has(b.questionId)) - Number(published.has(a.questionId)) || b.rank - a.rank,
+    );
+  } catch (error) {
+    console.error('Published-source lookup failed, keeping rerank order:', error);
+    return hits;
   }
 }
 
@@ -91,7 +119,8 @@ Latest user message: ${query}
 
 Return:
 - searchQuery: the latest message as one self-contained question in English. Translate it if it is in Urdu, Roman Urdu, Arabic, Persian or any other language, and fix spelling. If it is a follow-up (e.g. "what about Sistani?", "and while travelling?"), fill in the topic from the conversation. Keep the specific subject (e.g. "bleeding gums", "shrimp"); do not generalise it.
-- keywords: 3 to 10 words a fiqh question on this exact topic would contain: the key nouns in English, standard fiqh terms and transliterations (e.g. wudu, ablution; sawm, fasting; ghina, music; shrimp, prawn, seafood), and the Persian word for the main subject (e.g. میگو for shrimp, موسیقی for music). Leave out generic words such as ruling, permissible, allowed, islam, halal, haram, question.`,
+- keywords: 3 to 10 words a fiqh question on this exact topic would contain: the key nouns in English, standard fiqh terms and transliterations (e.g. wudu, ablution; sawm, fasting; ghina, music; shrimp, prawn, seafood), and the Persian word for the main subject (e.g. میگو for shrimp, موسیقی for music). Leave out generic words such as ruling, permissible, allowed, islam, halal, haram, question.
+- specificTerms: 1 to 3 words that most distinguish this question from other fiqh questions, which a relevant ruling would have to mention (e.g. "anal" for anal intercourse, "shrimp", "toothpaste", "gums"). Not general fiqh vocabulary like wife, prayer, fasting, intercourse, marriage.`,
         },
       ],
       {
@@ -102,18 +131,20 @@ Return:
           properties: {
             searchQuery: { type: 'string' },
             keywords: { type: 'array', items: { type: 'string' } },
+            specificTerms: { type: 'array', items: { type: 'string' } },
           },
-          required: ['searchQuery', 'keywords'],
+          required: ['searchQuery', 'keywords', 'specificTerms'],
         },
       },
     );
 
     const searchQuery = result.searchQuery?.trim() || query;
     const keywords = (result.keywords ?? []).map((k) => k.trim()).filter(Boolean).slice(0, 10);
-    return { searchQuery, keywords };
+    const specificTerms = (result.specificTerms ?? []).map((k) => k.trim()).filter(Boolean).slice(0, 3);
+    return { searchQuery, keywords, specificTerms };
   } catch (error) {
     console.error('Fiqh query understanding failed, searching the raw query:', error);
-    return { searchQuery: query, keywords: [] };
+    return { searchQuery: query, keywords: [], specificTerms: [] };
   }
 }
 
@@ -133,6 +164,8 @@ async function retrieveCandidates(
       matchFiqhQuestions(await embedQuery(text), PER_SEARCH, filterCategoryId, filterMarjaId),
     ),
     searchFiqh(keywordText, PER_SEARCH, filterCategoryId, filterMarjaId),
+    // One search per term: together, a common word the model slipped in would drown the rare one.
+    ...understanding.specificTerms.map((term) => searchFiqh(term, PER_SEARCH, filterCategoryId, filterMarjaId)),
   ];
 
   // One failing search (e.g. embeddings not backfilled yet) shouldn't sink the rest.
@@ -186,15 +219,44 @@ function fuse(lists: FiqhSearchHit[][]): FiqhSearchHit[] {
     .map(({ hit, score }) => ({ ...hit, rank: score }));
 }
 
+function queryTerms(query: string, understanding: QueryUnderstanding): string[] {
+  const words = [...understanding.specificTerms, query, understanding.searchQuery, ...understanding.keywords]
+    .join(' ')
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((w) => w.length > 3 && !GENERIC_TERMS.has(w));
+  return [...new Set(words)];
+}
+
+/**
+ * The candidate's opening plus the passage that matches the query. Risalah
+ * rulings often bury the relevant clause: Sistani's Ruling 448 opens with what
+ * is unlawful for a ḥāʾiḍ and only at the end addresses anal intercourse, so
+ * the opening alone made the reranker reject it.
+ */
+function rerankExcerpt(text: string, terms: string[]): string {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  if (clean.length <= RERANK_EXCERPT_CHARS) return clean;
+
+  // Terms are in priority order (most distinctive first), so the first one
+  // found marks the passage — not whichever common word appears earliest.
+  const lower = clean.toLowerCase();
+  const firstHit = terms.map((t) => lower.indexOf(t, RERANK_HEAD_CHARS)).find((pos) => pos >= 0);
+  if (firstHit === undefined) return clean.slice(0, RERANK_EXCERPT_CHARS);
+
+  const start = Math.max(RERANK_HEAD_CHARS, firstHit - 80);
+  const passage = clean.slice(start, start + RERANK_EXCERPT_CHARS - RERANK_HEAD_CHARS);
+  return `${clean.slice(0, RERANK_HEAD_CHARS)} … ${passage}`;
+}
+
 async function rerank(
   query: string,
   understanding: QueryUnderstanding,
   pool: FiqhSearchHit[],
   limit: number,
 ): Promise<FiqhSearchHit[]> {
-  const listing = pool
-    .map((h, i) => `[${i}] ${h.questionEn.replace(/\s+/g, ' ').slice(0, RERANK_EXCERPT_CHARS)}`)
-    .join('\n');
+  const terms = queryTerms(query, understanding);
+  const listing = pool.map((h, i) => `[${i}] ${rerankExcerpt(h.questionEn, terms)}`).join('\n');
 
   // Grading every candidate is steadier than asking for a pick list, which
   // small models tend to answer all-or-nothing.
