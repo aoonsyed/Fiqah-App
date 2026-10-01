@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Inter:wght@400;500;600;700&family=Amiri:wght@400;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -85,7 +83,7 @@ html {
 }
 
 body {
-  font-family: Inter, system-ui, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
   background: rgb(var(--c-bg));
   color: rgb(var(--c-fg));
   overflow-x: hidden;
@@ -197,15 +195,14 @@ body {
     mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
   }
 
-  /* Reveal-on-scroll: paired with the Reveal component's IntersectionObserver */
+  /* Reveal-on-scroll: paired with the Reveal component. Visible by default so
+     server HTML never arrives blank; only below-the-fold content is hidden. */
   .reveal {
-    opacity: 0;
-    transform: translateY(28px);
     transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
   }
-  .reveal.is-visible {
-    opacity: 1;
-    transform: none;
+  .reveal-pending {
+    opacity: 0;
+    transform: translateY(28px);
   }
 }
 
@@ -217,8 +214,22 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-  .reveal {
+  .reveal-pending {
     opacity: 1;
     transform: none;
   }
+}
+
+/* Arabic text anywhere (marked lang="ar") gets a proper naskh face, not the Latin UI font. */
+:lang(ar) {
+  font-family: var(--font-arabic), 'Noto Naskh Arabic', serif;
+}
+
+/* Page transition: each route's content fades in (app/template.tsx re-mounts per navigation). */
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.page-transition {
+  animation: page-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
 }

@@ -8,7 +8,7 @@ interface ChatInputProps {
   placeholder?: string;
 }
 
-export function ChatInput({ onSubmit, isLoading = false, placeholder = 'Ask about a hadith, a ruling, a narrator…' }: ChatInputProps) {
+export function ChatInput({ onSubmit, isLoading = false, placeholder = 'Ask a fiqh question — e.g. is khums due on gifts?' }: ChatInputProps) {
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -62,7 +62,7 @@ export function ChatInput({ onSubmit, isLoading = false, placeholder = 'Ask abou
           </button>
         </div>
         <p className="mt-2.5 text-center text-[11px] text-white/30">
-          Enter to send · Shift + Enter for a new line · Answers are grounded in the indexed corpus
+          Enter to send · Shift + Enter for a new line
         </p>
       </div>
     </form>

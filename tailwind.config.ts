@@ -39,9 +39,9 @@ const config: Config = {
         warn: 'rgb(var(--c-warn) / <alpha-value>)',
       },
       fontFamily: {
-        display: ['Fraunces', 'Georgia', 'serif'],
-        arabic: ['Amiri', '"Noto Naskh Arabic"', 'serif'],
-        sans: ['Outfit', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', 'Georgia', 'serif'],
+        arabic: ['var(--font-arabic)', '"Noto Naskh Arabic"', 'serif'],
+        sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
       },
       keyframes: {
         'fade-up': { from: { opacity: '0', transform: 'translateY(24px)' }, to: { opacity: '1', transform: 'none' } },

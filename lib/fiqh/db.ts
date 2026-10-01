@@ -435,3 +435,30 @@ export async function getCorpusStats(): Promise<FiqhCorpusStats | null> {
     questionLinks: links.count ?? 0,
   };
 }
+
+export interface PublishedMarjaCount {
+  marja: Marja;
+  /** Rulings imported from the marja's own published works — excludes generated placeholders. */
+  rulings: number;
+}
+
+/**
+ * Published-ruling counts per marja, largest first; maraji with none are left out.
+ * The raw fatwa count also includes generated placeholder answers, so it
+ * overstates the library — public-facing numbers should come from here.
+ */
+export async function listPublishedCounts(): Promise<PublishedMarjaCount[]> {
+  const maraji = await listMaraji();
+  const counts = await Promise.all(
+    maraji.map(async (marja) => {
+      const { count, error } = await supabase
+        .from('fatwas')
+        .select('id', { count: 'exact', head: true })
+        .eq('marja_id', marja.id)
+        .eq('evidence_refs->0->>type', 'url');
+      if (error) throw error;
+      return { marja, rulings: count ?? 0 };
+    }),
+  );
+  return counts.filter((c) => c.rulings > 0).sort((a, b) => b.rulings - a.rulings);
+}

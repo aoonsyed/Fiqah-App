@@ -23,8 +23,8 @@ const supabaseWs = supabaseOrigin.replace(/^http/, "ws");
 const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' data: https://fonts.gstatic.com",
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self' data:",
   "img-src 'self' data: blob: https:",
   `connect-src 'self' ${supabaseOrigin} ${supabaseWs}${isDev ? " ws://localhost:* ws://127.0.0.1:*" : ""}`,
   "frame-src 'none'",

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — Shia Fiqh',
+  title: 'Privacy policy',
   description: 'What data Fiqah collects, why, who processes it, and how to have it deleted.',
 };
 

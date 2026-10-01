@@ -31,8 +31,8 @@ interface FiqhCitation {
 const SUGGESTIONS = [
   'What is the ruling on music in the home?',
   'Khums on unused savings — when is it due?',
-  'Can I break fast for a medical test?',
-  'Compare maraji on cryptocurrency trading',
+  'Can I break my fast for a medical test?',
+  'Is cryptocurrency trading permissible?',
 ];
 
 const THINKING_STAGES = [
@@ -45,17 +45,9 @@ const THINKING_STAGES = [
 
 const STAGE_MS = 2200;
 
-const GREETING: Message = {
-  id: '0',
-  role: 'assistant',
-  content:
-    'السلام عليكم\n\nAsk about Shia fiqh masail. I answer from the comparative fatwa corpus and cite marja sources — not from hadith collections.',
-  citations: [],
-};
-
 export default function ChatPage() {
   const router = useRouter();
-  const [messages, setMessages] = useState<Message[]>([GREETING]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [stage, setStage] = useState(0);
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -127,7 +119,7 @@ export default function ChatPage() {
           content:
             error instanceof Error && error.message.includes('GEMINI')
               ? 'Set GEMINI_API_KEY in .env.local to enable AI answers.'
-              : 'Something went wrong. Check Supabase + fiqh seed, then try again.',
+              : 'Something went wrong while answering. Please try again in a moment.',
           citations: [],
         },
       ]);
@@ -149,7 +141,7 @@ export default function ChatPage() {
           </Link>
           <button
             onClick={() => {
-              setMessages([GREETING]);
+              setMessages([]);
               scrollThread(0);
             }}
             className="btn-ghost !px-4 !py-2 text-xs"
@@ -160,6 +152,18 @@ export default function ChatPage() {
       </div>
 
       <div ref={scrollerRef} className="flex-1 overflow-y-auto py-8">
+        {messages.length === 0 && (
+          <div className="max-w-2xl">
+            <p lang="ar" dir="rtl" className="w-fit font-arabic text-3xl leading-loose text-gold-200">
+              السلام عليكم
+            </p>
+            <p className="mt-3 leading-relaxed text-white/70">
+              Ask about Shia fiqh in your own words. Answers are drawn from the maraji&apos;s published rulings, with
+              each one cited to its book and issue number so you can check it.
+            </p>
+          </div>
+        )}
+
         {messages.map((message, i) => {
           const isLastQuestion = message.role === 'user' && !messages.slice(i + 1).some((m) => m.role === 'user');
           return (
@@ -187,7 +191,7 @@ export default function ChatPage() {
           );
         })}
 
-        {messages.length === 1 && !isLoading && (
+        {messages.length === 0 && !isLoading && (
           <div className="mt-8 flex flex-wrap gap-2.5">
             {SUGGESTIONS.map((s) => (
               <button
@@ -220,6 +224,10 @@ export default function ChatPage() {
 
       <div className="-mx-5 sm:-mx-8">
         <ChatInput onSubmit={handleSendMessage} isLoading={isLoading} />
+        <p className="px-5 pb-3 text-center text-[11px] leading-relaxed text-white/40 sm:px-8">
+          Answers can be incomplete or wrong. Before acting on a ruling, confirm it with your marja&apos;s office or
+          their official website.
+        </p>
       </div>
     </div>
   );

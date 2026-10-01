@@ -5,15 +5,15 @@ const COLUMNS = [
     title: 'Explore',
     links: [
       { href: '/chat', label: 'Ask fiqh' },
-      { href: '/search', label: 'Search masail' },
+      { href: '/search', label: 'Search rulings' },
       { href: '/prayer-times', label: 'Prayer times' },
     ],
   },
   {
-    title: 'System',
+    title: 'About',
     links: [
-      { href: '/api/health', label: 'API health' },
-      { href: '/api/stats', label: 'Corpus stats' },
+      { href: '/about', label: 'About & sources' },
+      { href: '/principles', label: 'Legal principles' },
       { href: '/privacy', label: 'Privacy policy' },
     ],
   },

@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Reveal } from '@/app/components/Reveal';
 import { LEGAL_PRINCIPLES } from '@/lib/fiqh/catalog';
@@ -22,10 +21,7 @@ export default function PrinciplesPage() {
   return (
     <main className="mx-auto max-w-4xl px-5 py-16 sm:px-8">
       <Reveal>
-        <Link href="/" className="text-sm text-gold-200 hover:underline">
-          ← Home
-        </Link>
-        <h1 className="section-title mt-6">Usul & legal principles</h1>
+        <h1 className="section-title">Usul & legal principles</h1>
         <p className="mt-4 text-white/50">Foundational rules applied across fiqh domains.</p>
       </Reveal>
 

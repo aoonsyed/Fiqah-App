@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const TICKS = Array.from({ length: 72 }, (_, i) => i * 5);
 const CARDINALS = [
@@ -14,61 +14,99 @@ interface OrientationEventiOS extends DeviceOrientationEvent {
   webkitCompassHeading?: number;
 }
 
+type PermissionRequest = () => Promise<'granted' | 'denied'>;
+
+/** Weight of each new sensor reading. Lower is steadier but lags more; 0.15 settles in ~0.3s at 60Hz. */
+const SMOOTHING = 0.15;
+
 /**
  * Live heading from the device magnetometer, in degrees clockwise from north.
- * Returns null when no sensor is available (desktop), so the dial stays north-up.
+ *
+ * Raw readings jitter by several degrees, so they're low-pass filtered. The
+ * filter averages sin/cos rather than degrees, so 359° and 1° average to 0°,
+ * not 180°. `rotation` is the same heading unwrapped into a continuous angle,
+ * so a dial turning past north takes the short way instead of spinning round.
+ *
+ * iOS only exposes the sensor after DeviceOrientationEvent.requestPermission()
+ * is called from a tap — `needsPermission` says when to show that button.
  */
 function useDeviceHeading() {
   const [heading, setHeading] = useState<number | null>(null);
+  const [rotation, setRotation] = useState(0);
+  const [needsPermission, setNeedsPermission] = useState(false);
+  const [denied, setDenied] = useState(false);
+  const filter = useRef<{ sin: number; cos: number; rotation: number; last: number } | null>(null);
+  const frame = useRef(0);
+  const attached = useRef(false);
+
+  const onOrient = useCallback((e: Event) => {
+    const evt = e as OrientationEventiOS;
+    let raw: number | null = null;
+    if (typeof evt.webkitCompassHeading === 'number') raw = evt.webkitCompassHeading;
+    else if (evt.absolute && typeof evt.alpha === 'number') raw = (360 - evt.alpha) % 360;
+    if (raw === null) return;
+
+    const rad = (raw * Math.PI) / 180;
+    const f = filter.current;
+    if (!f) {
+      filter.current = { sin: Math.sin(rad), cos: Math.cos(rad), rotation: raw, last: raw };
+    } else {
+      f.sin += SMOOTHING * (Math.sin(rad) - f.sin);
+      f.cos += SMOOTHING * (Math.cos(rad) - f.cos);
+      const smoothed = ((Math.atan2(f.sin, f.cos) * 180) / Math.PI + 360) % 360;
+      f.rotation += ((smoothed - f.last + 540) % 360) - 180;
+      f.last = smoothed;
+    }
+
+    // Sensors fire faster than the screen refreshes; render at most once per frame.
+    if (!frame.current) {
+      frame.current = requestAnimationFrame(() => {
+        frame.current = 0;
+        const cur = filter.current!;
+        setHeading(cur.last);
+        setRotation(cur.rotation);
+      });
+    }
+  }, []);
+
+  const attach = useCallback(() => {
+    if (attached.current) return;
+    attached.current = true;
+    window.addEventListener('deviceorientationabsolute', onOrient);
+    window.addEventListener('deviceorientation', onOrient);
+  }, [onOrient]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('DeviceOrientationEvent' in window)) return;
-
-    const onOrient = (e: Event) => {
-      const evt = e as OrientationEventiOS;
-      if (typeof evt.webkitCompassHeading === 'number') {
-        setHeading(evt.webkitCompassHeading);
-      } else if (evt.absolute && typeof evt.alpha === 'number') {
-        setHeading((360 - evt.alpha) % 360);
-      }
-    };
-
-    const attach = () => {
-      window.addEventListener('deviceorientationabsolute', onOrient);
-      window.addEventListener('deviceorientation', onOrient);
-    };
-
-    // iOS 13+ only grants the sensor from inside a user gesture, so piggyback on
-    // the first tap anywhere rather than making the reader press a button.
-    const request = (DeviceOrientationEvent as any).requestPermission;
-    let unlock: (() => void) | undefined;
-
-    if (typeof request === 'function') {
-      const onFirstGesture = async () => {
-        try {
-          if ((await request()) === 'granted') attach();
-        } catch {
-          /* denied — dial stays north-up */
-        }
-      };
-      unlock = () => {
-        window.removeEventListener('touchend', onFirstGesture);
-        window.removeEventListener('click', onFirstGesture);
-      };
-      window.addEventListener('touchend', onFirstGesture, { once: true });
-      window.addEventListener('click', onFirstGesture, { once: true });
-    } else {
-      attach();
-    }
+    const request = (DeviceOrientationEvent as unknown as { requestPermission?: PermissionRequest }).requestPermission;
+    // Only phones and tablets have the sensor; a desktop with the API would show a button that does nothing.
+    if (typeof request === 'function') setNeedsPermission(window.matchMedia('(pointer: coarse)').matches);
+    else attach();
 
     return () => {
-      unlock?.();
+      cancelAnimationFrame(frame.current);
       window.removeEventListener('deviceorientationabsolute', onOrient);
       window.removeEventListener('deviceorientation', onOrient);
+      attached.current = false;
     };
-  }, []);
+  }, [attach, onOrient]);
 
-  return heading;
+  /** Must be called from a tap handler — iOS rejects it otherwise. */
+  const requestPermission = useCallback(async () => {
+    const request = (DeviceOrientationEvent as unknown as { requestPermission?: PermissionRequest }).requestPermission;
+    try {
+      if (request && (await request()) === 'granted') {
+        setNeedsPermission(false);
+        attach();
+      } else {
+        setDenied(true);
+      }
+    } catch {
+      setDenied(true);
+    }
+  }, [attach]);
+
+  return { heading, rotation, needsPermission, denied, requestPermission };
 }
 
 export function QiblaCompass({
@@ -81,16 +119,21 @@ export function QiblaCompass({
   /** Hide large readout and pulse rings — for tight layouts */
   compact?: boolean;
 }) {
-  const heading = useDeviceHeading();
+  const { heading, rotation, needsPermission, denied, requestPermission } = useDeviceHeading();
   const ready = bearing !== null;
   const angle = bearing ?? 0;
 
-  const dialRotation = heading === null ? 0 : -heading;
   const live = heading !== null;
+  const dialRotation = live ? -rotation : 0;
 
   return (
     <div className={`flex flex-col items-center ${compact ? 'gap-0' : 'gap-4'}`}>
-      <div className="relative grid place-items-center" style={{ width: size, height: size }}>
+      <div
+        className={`relative grid place-items-center transition-opacity ${ready ? '' : 'opacity-40'}`}
+        style={{ width: size, height: size }}
+        role="img"
+        aria-label={ready ? `Qibla compass: ${Math.round(angle)} degrees from north` : 'Qibla compass: waiting for your location'}
+      >
         {!compact && (
           <>
             <span className="absolute h-full w-full rounded-full border border-emerald-400/25 animate-pulse-ring" />
@@ -121,7 +164,8 @@ export function QiblaCompass({
             style={{
               transform: `rotate(${dialRotation}deg)`,
               transformOrigin: '100px 100px',
-              transition: live ? 'transform .25s linear' : 'transform 1.2s cubic-bezier(.22,1,.36,1)',
+              // Readings are already smoothed; a short linear tween just fills the gaps between frames.
+              transition: live ? 'transform .12s linear' : 'transform 1.2s cubic-bezier(.22,1,.36,1)',
             }}
           >
             {TICKS.map((t) => {
@@ -167,9 +211,11 @@ export function QiblaCompass({
               <polygon points="100,38 105.5,100 100,92 94.5,100" fill="url(#needle)" />
               <polygon points="100,162 104,100 100,108 96,100" fill="rgb(var(--c-fg) / .12)" />
               <circle cx="100" cy="44" r="8.5" fill="rgb(var(--c-bg))" stroke="rgb(var(--c-gold-300))" strokeWidth="1.5" />
-              <text x="100" y="47.5" textAnchor="middle" className="text-[8px]">
-                🕋
-              </text>
+              {/* Kaaba: drawn rather than an emoji, which renders differently on every platform. */}
+              <g transform="translate(100 44)">
+                <rect x="-4.5" y="-4.5" width="9" height="9" rx="0.8" fill="#151515" stroke="rgb(var(--c-gold-300) / .6)" strokeWidth="0.5" />
+                <rect x="-4.5" y="-2.4" width="9" height="1.5" fill="rgb(var(--c-gold-300))" />
+              </g>
             </g>
           </g>
 
@@ -186,11 +232,23 @@ export function QiblaCompass({
           {ready && live && <AlignmentHint bearing={angle} heading={heading} />}
         </>
       )}
-      {compact && ready && live && (
-        <p className="mt-1 text-[10px] text-white/45">
-          {Math.abs((((angle - heading + 540) % 360) - 180)) <= 5
-            ? 'Facing Qibla'
-            : 'Tap for live heading'}
+      {compact && ready && live && Math.abs(((angle - heading + 540) % 360) - 180) <= ALIGNED_WITHIN_DEG && (
+        <p className="mt-1 text-[10px] font-semibold text-emerald-300">Facing Qibla</p>
+      )}
+      {ready && needsPermission && (
+        <button
+          type="button"
+          onClick={requestPermission}
+          className={`rounded-full border border-gold-300/40 font-semibold text-gold-200 transition hover:bg-gold-300/10 ${
+            compact ? 'mt-2 px-2.5 py-1 text-[10px]' : 'px-4 py-1.5 text-sm'
+          }`}
+        >
+          Enable live compass
+        </button>
+      )}
+      {!compact && denied && (
+        <p className="max-w-xs text-center text-xs text-white/45">
+          Compass access was declined. The bearing above still works — face it using any compass.
         </p>
       )}
     </div>
